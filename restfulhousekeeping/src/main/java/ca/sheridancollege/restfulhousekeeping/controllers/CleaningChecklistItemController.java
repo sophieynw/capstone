@@ -3,19 +3,14 @@ package ca.sheridancollege.restfulhousekeeping.controllers;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningChecklistItemResponse;
 import ca.sheridancollege.restfulhousekeeping.models.CreateCleaningChecklistItemRequest;
-import ca.sheridancollege.restfulhousekeeping.services.CleaningChecklistItemService;
+import ca.sheridancollege.restfulhousekeeping.models.UpdateCleaningChecklistItemRequest;import ca.sheridancollege.restfulhousekeeping.services.CleaningChecklistItemService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @AllArgsConstructor
@@ -46,5 +41,21 @@ public class CleaningChecklistItemController {
             @AuthenticationPrincipal User manager) {
         checklistItemService.deleteItem(cleaningId, itemId, manager);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{itemId}")
+    public ResponseEntity<CleaningChecklistItemResponse> updateCompletion(
+        @PathVariable Long cleaningId,
+        @PathVariable Long itemId,
+        @Valid @RequestBody UpdateCleaningChecklistItemRequest request,
+        @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(
+            checklistItemService.updateCompletion(
+                cleaningId,
+                itemId,
+                request.isComplete(),
+                user
+            )
+        );
     }
 }

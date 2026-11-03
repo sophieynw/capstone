@@ -51,6 +51,49 @@ public class CleaningChecklistItemService {
         itemRepository.delete(item);
     }
 
+    @Transactional
+    public CleaningChecklistItemResponse updateCompletion(
+        Long cleaningId,
+        Long itemId,
+        boolean isComplete,
+        User user) {
+
+        Cleaning cleaning = cleaningRepository.findById(cleaningId)
+            .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Cleaning not found"
+            ));
+
+        // Only the assigned cleaner may tick items
+        if (user == null
+            || user.getRole() != Role.CLEANER
+            || cleaning.getCleaner() == null
+            || !cleaning.getCleaner().getId().equals(user.getId())) {
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Only the assigned cleaner can update this checklist"
+        );
+    }
+
+    if (Boolean.TRUE.equals(cleaning.getIsComplete())) {
+        throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Completed cleaning checklist items cannot be changed"
+        );
+    }
+
+    CleaningChecklistItem item = itemRepository
+            .findByIdAndCleaning_Id(itemId, cleaningId)
+            .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Cleaning checklist item not found"
+            ));
+
+    item.setIsComplete(isComplete);
+
+    return responseService.toResponse(itemRepository.save(item));
+}
+
     private Cleaning getManagedCleaning(Long cleaningId, User manager) {
         if (manager == null || manager.getRole() != Role.MANAGER) {
             throw new ResponseStatusException(

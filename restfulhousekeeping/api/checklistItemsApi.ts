@@ -1,5 +1,5 @@
 // api/checklistItemsApi.ts
-import { ChecklistItem } from '@/types/entityTypes';
+import { AvailabilitySlot, ChecklistItem } from '@/types/entityTypes';
 import { request } from '@/api/apiClient';
 
 export function getChecklistItems(

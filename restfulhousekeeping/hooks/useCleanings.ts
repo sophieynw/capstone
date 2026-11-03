@@ -12,6 +12,7 @@ import {
   getCompletedCleanings,
   getNextCleaningByProperty,
   getUpcomingCleanings,
+  updateCleaningChecklistItem,
   updateCleaningCleaner,
   updateCleaningSchedule,
 } from '@/api/cleaningsApi';
@@ -351,6 +352,72 @@ export function useDeleteCleaningChecklistItem() {
         exact: true,
         refetchType: 'all',
       });
+    },
+  });
+}
+
+export function useUpdateCleaningChecklistItems() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      cleaningId,
+      updates,
+    }: {
+      cleaningId: number;
+      propertyId: number;
+      updates: { id: number; isComplete: boolean }[];
+    }) =>
+      Promise.all(
+        updates.map(({ id, isComplete }) =>
+          updateCleaningChecklistItem(cleaningId, id, isComplete),
+        ),
+      ),
+
+    onSuccess: async (updatedItems, { cleaningId, propertyId }) => {
+      const applyUpdates = (cleaning: Cleaning | undefined) =>
+        cleaning?.id === cleaningId
+          ? {
+              ...cleaning,
+              cleaningChecklistItems: cleaning.cleaningChecklistItems.map(
+                (item) =>
+                  updatedItems.find((updated) => updated.id === item.id) ??
+                  item,
+              ),
+            }
+          : cleaning;
+
+      queryClient.setQueryData<Cleaning>(
+        ['cleaning-id', cleaningId],
+        applyUpdates,
+      );
+
+      queryClient.setQueriesData<Cleaning[]>(
+        { queryKey: ['upcoming-cleanings'] },
+        (cleanings) => cleanings?.map((cleaning) => applyUpdates(cleaning)!),
+      );
+
+      queryClient.setQueryData<Cleaning>(
+        ['next-property-cleaning', propertyId],
+        applyUpdates,
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['cleaning-id', cleaningId],
+          exact: true,
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['upcoming-cleanings'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['next-property-cleaning', propertyId],
+          exact: true,
+          refetchType: 'all',
+        }),
+      ]);
     },
   });
 }

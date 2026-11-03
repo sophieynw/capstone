@@ -49,6 +49,7 @@ import {
   useCompleteCleaning,
   useDeleteCleaning,
   useDeleteCleaningChecklistItem,
+  useUpdateCleaningChecklistItems,
   useUpdateCleaningCleaner,
   useUpdateCleaningSchedule,
 } from '@/hooks/useCleanings';
@@ -124,6 +125,7 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
   const deleteCleaningMutation = useDeleteCleaning();
   const addChecklistItemMutation = useAddCleaningChecklistItem();
   const deleteChecklistItemMutation = useDeleteCleaningChecklistItem();
+  const updateChecklistItemsMutation = useUpdateCleaningChecklistItems();
   const updateCleanerMutation = useUpdateCleaningCleaner();
   const updateScheduleMutation = useUpdateCleaningSchedule();
   const createIssueMutation = useCreateIssue();
@@ -240,6 +242,14 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
       cleaningId: cleaning.id,
       propertyId: cleaning.property.id,
       itemId: item.id,
+    });
+  }
+
+  function handleUpdateChecklist(updates: ChecklistItemUpdate[]) {
+    return updateChecklistItemsMutation.mutateAsync({
+      cleaningId: cleaning.id,
+      propertyId: cleaning.property.id,
+      updates,
     });
   }
 
@@ -451,7 +461,9 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
           {/* Cleaner View */}
           {user?.role == Role.CLEANER && (
             <CleanerChecklistSection
-              items={cleaning?.cleaningChecklistItems ?? []}
+              items={cleaning.cleaningChecklistItems}
+              onSave={handleUpdateChecklist}
+              isReadOnly={cleaning.isComplete}
             />
           )}
         </Card>

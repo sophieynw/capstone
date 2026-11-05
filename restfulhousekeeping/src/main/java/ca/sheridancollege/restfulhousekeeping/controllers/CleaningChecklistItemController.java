@@ -3,7 +3,8 @@ package ca.sheridancollege.restfulhousekeeping.controllers;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningChecklistItemResponse;
 import ca.sheridancollege.restfulhousekeeping.models.CreateCleaningChecklistItemRequest;
-import ca.sheridancollege.restfulhousekeeping.models.UpdateCleaningChecklistItemRequest;import ca.sheridancollege.restfulhousekeeping.services.CleaningChecklistItemService;
+import ca.sheridancollege.restfulhousekeeping.models.UpdateCleaningChecklistItemRequest;
+import ca.sheridancollege.restfulhousekeeping.services.CleaningChecklistItemService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -45,17 +46,17 @@ public class CleaningChecklistItemController {
 
     @PatchMapping("/{itemId}")
     public ResponseEntity<CleaningChecklistItemResponse> updateCompletion(
-        @PathVariable Long cleaningId,
-        @PathVariable Long itemId,
-        @Valid @RequestBody UpdateCleaningChecklistItemRequest request,
-        @AuthenticationPrincipal User user) {
+            @PathVariable Long cleaningId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody UpdateCleaningChecklistItemRequest request,
+            @AuthenticationPrincipal User cleaner) {
         return ResponseEntity.ok(
-            checklistItemService.updateCompletion(
-                cleaningId,
-                itemId,
-                request.isComplete(),
-                user
-            )
+                checklistItemService.updateCompletion(
+                        cleaningId,
+                        itemId,
+                        request.isComplete(),
+                        cleaner
+                )
         );
     }
 }

@@ -8,7 +8,7 @@ import {
   Role,
 } from '@/types/entityTypes';
 import { formatLocalDateTime, toFriendlyDate } from '@/utils/helpers';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { useCleaners } from '@/hooks/useUsers';
 import { styles } from '@/styles/styles';
 import { Heading } from '@/components/ui/heading';
@@ -126,6 +126,10 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
   const addChecklistItemMutation = useAddCleaningChecklistItem();
   const deleteChecklistItemMutation = useDeleteCleaningChecklistItem();
   const updateChecklistItemsMutation = useUpdateCleaningChecklistItems();
+  const checklistSaveInFlight = useRef(false);
+  const pendingChecklistUpdate = updateChecklistItemsMutation.isPending
+    ? updateChecklistItemsMutation.variables.updates[0]
+    : undefined;
   const updateCleanerMutation = useUpdateCleaningCleaner();
   const updateScheduleMutation = useUpdateCleaningSchedule();
   const createIssueMutation = useCreateIssue();
@@ -164,6 +168,8 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
         {
           text: 'Yes',
           onPress: () => {
+            if (checklistSaveInFlight.current) return;
+
             completeCleaningMutation.mutate(cleaning.id, {
               onSuccess: () => {
                 navigation.goBack();
@@ -245,12 +251,31 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
     });
   }
 
-  function handleUpdateChecklist(updates: ChecklistItemUpdate[]) {
-    return updateChecklistItemsMutation.mutateAsync({
-      cleaningId: cleaning.id,
-      propertyId: cleaning.property.id,
-      updates,
-    });
+  async function handleToggleChecklistItem(item: CleaningChecklistItem) {
+    if (
+      cleaning.isComplete ||
+      completeCleaningMutation.isPending ||
+      checklistSaveInFlight.current
+    ) {
+      return;
+    }
+
+    checklistSaveInFlight.current = true;
+    try {
+      await updateChecklistItemsMutation.mutateAsync({
+        cleaningId: cleaning.id,
+        propertyId: cleaning.property.id,
+        updates: [{ id: item.id, isComplete: !item.isComplete }],
+      });
+    } catch (error) {
+      console.error('Update cleaning checklist error:', error);
+      Alert.alert(
+        'Unable to update checklist',
+        'This item could not be saved. Please try again.',
+      );
+    } finally {
+      checklistSaveInFlight.current = false;
+    }
   }
 
   function handleScheduleChange(nextStart: Date, nextEnd: Date) {
@@ -315,7 +340,9 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
             size='lg'
             onPress={handleCompleteCleaning}
             isDisabled={
-              completeCleaningMutation.isPending || cleaning.isComplete
+              completeCleaningMutation.isPending ||
+              updateChecklistItemsMutation.isPending ||
+              cleaning.isComplete
             }
           >
             <ButtonIcon style={styles.buttonText} as={SquareCheckBig} />
@@ -462,8 +489,11 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
           {user?.role == Role.CLEANER && (
             <CleanerChecklistSection
               items={cleaning.cleaningChecklistItems}
-              onSave={handleUpdateChecklist}
-              isReadOnly={cleaning.isComplete}
+              onToggle={handleToggleChecklistItem}
+              pendingUpdate={pendingChecklistUpdate}
+              isReadOnly={
+                cleaning.isComplete || completeCleaningMutation.isPending
+              }
             />
           )}
         </Card>

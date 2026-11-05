@@ -3,6 +3,7 @@ import { request } from '@/api/apiClient';
 import {
   Cleaning,
   CleaningChecklistItem,
+  CleaningNote,
   CreateCleaningPayload,
 } from '@/types/entityTypes';
 
@@ -26,6 +27,24 @@ export function getCleaningById(id: number): Promise<Cleaning> {
   return request<Cleaning>({
     method: 'GET',
     url: `/cleanings/${id}`,
+  });
+}
+
+export function getCleaningNotes(cleaningId: number): Promise<CleaningNote[]> {
+  return request<CleaningNote[]>({
+    method: 'GET',
+    url: `/cleanings/${cleaningId}/notes`,
+  });
+}
+
+export function createCleaningNote(
+  cleaningId: number,
+  content: string,
+): Promise<CleaningNote> {
+  return request<CleaningNote>({
+    method: 'POST',
+    url: `/cleanings/${cleaningId}/notes`,
+    data: { content },
   });
 }
 

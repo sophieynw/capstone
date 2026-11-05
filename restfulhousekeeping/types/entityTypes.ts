@@ -70,6 +70,14 @@ export interface CleaningChecklistItem {
   isComplete: boolean;
 }
 
+export interface CleaningNote {
+  id: number;
+  authorFirstName: string | null;
+  authorLastName: string | null;
+  content: string;
+  createdAt: string;
+}
+
 export interface Property {
   id: number;
   name: string;

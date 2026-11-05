@@ -6,9 +6,11 @@ import {
   addCleaningChecklistItem,
   completeCleaning,
   createCleaning,
+  createCleaningNote,
   deleteCleaning,
   deleteCleaningChecklistItem,
   getCleaningById,
+  getCleaningNotes,
   getCompletedCleanings,
   getNextCleaningByProperty,
   getUpcomingCleanings,
@@ -16,7 +18,7 @@ import {
   updateCleaningCleaner,
   updateCleaningSchedule,
 } from '@/api/cleaningsApi';
-import { Cleaning } from '@/types/entityTypes';
+import { Cleaning, CleaningNote } from '@/types/entityTypes';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -65,6 +67,34 @@ export function useCleaningById(id: number) {
     queryKey: ['cleaning-id', id],
     queryFn: () => getCleaningById(id),
     enabled: !!user?.id,
+  });
+}
+
+export function useCleaningNotes(cleaningId: number) {
+  const { user } = useContext(AuthContext);
+
+  return useQuery({
+    queryKey: ['cleaning-notes', cleaningId, user?.id],
+    queryFn: () => getCleaningNotes(cleaningId),
+    enabled: !!user?.id,
+  });
+}
+
+export function useCreateCleaningNote(cleaningId: number) {
+  const { user } = useContext(AuthContext);
+  const queryClient = useQueryClient();
+  const queryKey = ['cleaning-notes', cleaningId, user?.id];
+
+  return useMutation({
+    mutationFn: (content: string) => createCleaningNote(cleaningId, content),
+    onSuccess: async (note) => {
+      await queryClient.cancelQueries({ queryKey, exact: true });
+      queryClient.setQueryData<CleaningNote[]>(queryKey, (notes) => [
+        note,
+        ...(notes ?? []).filter((existing) => existing.id !== note.id),
+      ]);
+      void queryClient.invalidateQueries({ queryKey, exact: true });
+    },
   });
 }
 

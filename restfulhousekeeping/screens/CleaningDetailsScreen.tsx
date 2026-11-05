@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { AuthContext } from '@/auth/AuthContext';
 import { NotesSection } from '@/components/NotesSection';
+import { NoteCard } from '@/components/NoteCard';
 import { ChecklistSection } from '@/components/ChecklistSection';
 import { CleanerChecklistSection } from '@/components/CleanerChecklistSection';
 import { PhotosSection } from '@/components/PhotosSection';
@@ -46,7 +47,9 @@ import {
 import {
   useAddCleaningChecklistItem,
   useCleaningById,
+  useCleaningNotes,
   useCompleteCleaning,
+  useCreateCleaningNote,
   useDeleteCleaning,
   useDeleteCleaningChecklistItem,
   useUpdateCleaningChecklistItems,
@@ -83,6 +86,9 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
   const property = cleaning.property;
 
   const [notes, setNotes] = useState('');
+  const cleaningNotes = useCleaningNotes(cleaning.id);
+  const createNoteMutation = useCreateCleaningNote(cleaning.id);
+  const noteSaveInFlight = useRef(false);
   const [photos, setPhotos] = useState<ImagePickerAsset[]>([]);
 
   const [cleanerSelected, setCleanerSelected] = useState(
@@ -154,6 +160,22 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
     console.error('Cleaning error:', cleaningError);
 
     return <ErrorState />;
+  }
+
+  async function handleSaveNote() {
+    const content = notes.trim();
+    if (!content || noteSaveInFlight.current) return;
+
+    noteSaveInFlight.current = true;
+    try {
+      await createNoteMutation.mutateAsync(content);
+      setNotes('');
+    } catch (error) {
+      console.error('Create cleaning note error:', error);
+      Alert.alert('Unable to save note', 'Please try again.');
+    } finally {
+      noteSaveInFlight.current = false;
+    }
   }
 
   function handleCompleteCleaning() {
@@ -472,6 +494,13 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
           </View>
         </Card>
 
+        {cleaning.notes?.trim() && (
+          <Card style={styles.mediumCard}>
+            <Heading size='md'>Cleaning Instructions</Heading>
+            <Text>{cleaning.notes}</Text>
+          </Card>
+        )}
+
         {/* Checklist Card */}
         <Card style={styles.mediumCard}>
           {/* Manager View */}
@@ -498,9 +527,24 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
           )}
         </Card>
 
-        {/* Notes Section Card */}
+        {cleaningNotes.isLoading && <Text>Loading notes...</Text>}
+        {cleaningNotes.isError && (
+          <Text>Unable to load notes. Reopen this screen to try again.</Text>
+        )}
+        {[...(cleaningNotes.data ?? [])]
+          .sort(
+            (a, b) =>
+              Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id - b.id,
+          )
+          .map((note) => <NoteCard key={note.id} note={note} />)}
+
         <Card style={styles.mediumCard}>
-          <NotesSection notes={notes} setNotes={setNotes} />
+          <NotesSection
+            notes={notes}
+            setNotes={setNotes}
+            onSave={handleSaveNote}
+            isSaving={createNoteMutation.isPending}
+          />
         </Card>
 
         {/* Photos Section Card */}

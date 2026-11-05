@@ -70,6 +70,10 @@ export interface CleaningChecklistItem {
   isComplete: boolean;
 }
 
+export interface CleaningPhoto {
+  id: number;
+}
+
 export interface CleaningNote {
   id: number;
   authorFirstName: string | null;

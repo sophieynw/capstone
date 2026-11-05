@@ -26,7 +26,6 @@ import { NoteCard } from '@/components/NoteCard';
 import { ChecklistSection } from '@/components/ChecklistSection';
 import { CleanerChecklistSection } from '@/components/CleanerChecklistSection';
 import { PhotosSection } from '@/components/PhotosSection';
-import type { ImagePickerAsset } from 'expo-image-picker';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorState } from '@/components/ErrorState';
 import { CleaningDateTimeFields } from '@/components/CleaningDateTimeFields';
@@ -89,7 +88,6 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
   const cleaningNotes = useCleaningNotes(cleaning.id);
   const createNoteMutation = useCreateCleaningNote(cleaning.id);
   const noteSaveInFlight = useRef(false);
-  const [photos, setPhotos] = useState<ImagePickerAsset[]>([]);
 
   const [cleanerSelected, setCleanerSelected] = useState(
     cleaning?.cleanerId?.toString() ?? UNASSIGNED_CLEANER_VALUE,
@@ -547,12 +545,13 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
           />
         </Card>
 
-        {/* Photos Section Card */}
-        {user?.role == Role.CLEANER && (
-          <Card style={styles.mediumCard}>
-            <PhotosSection photos={photos} onPhotosChange={setPhotos} />
-          </Card>
-        )}
+        <Card style={styles.mediumCard}>
+          <PhotosSection
+            key={cleaning.id}
+            cleaningId={cleaning.id}
+            canUpload={user?.role === Role.CLEANER && user.id === cleaning.cleanerId}
+          />
+        </Card>
       </View>
 
       {/* Report Issue Button */}

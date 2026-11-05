@@ -58,7 +58,7 @@ public class CleaningChecklistItemService {
         boolean isComplete,
         User user) {
 
-        Cleaning cleaning = cleaningRepository.findById(cleaningId)
+        Cleaning cleaning = cleaningRepository.findByIdForUpdate(cleaningId)
             .orElseThrow(() -> new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
                     "Cleaning not found"
@@ -102,7 +102,7 @@ public class CleaningChecklistItemService {
             );
         }
 
-        Cleaning cleaning = cleaningRepository.findById(cleaningId)
+        Cleaning cleaning = cleaningRepository.findByIdForUpdate(cleaningId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Cleaning not found"

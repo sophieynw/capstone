@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,11 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
+import ca.sheridancollege.restfulhousekeeping.beans.CleaningChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.Organization;
 import ca.sheridancollege.restfulhousekeeping.beans.Property;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningResponse;
+import ca.sheridancollege.restfulhousekeeping.repositories.CleaningChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.OrganizationRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
@@ -40,9 +44,11 @@ class CleaningResponseServiceTests {
     @Autowired MockMvc mvc;
     @Autowired CleaningResponseService service;
     @Autowired CleaningRepository cleaningRepository;
+    @Autowired CleaningChecklistItemRepository checklistItemRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired PropertyRepository propertyRepository;
     @Autowired UserRepository userRepository;
+    @Autowired EntityManager entityManager;
 
     Organization managerOrganization;
     User manager;
@@ -75,6 +81,52 @@ class CleaningResponseServiceTests {
                 .property(property)
                 .isComplete(false)
                 .build());
+    }
+
+    @Test
+    void completesAndPersistsOnlyTheSelectedCleaningsChecklist() throws Exception {
+        cleaning.setCleaner(teamCleaner);
+        Cleaning otherCleaning = cleaningRepository.save(Cleaning.builder()
+                .manager(manager)
+                .property(cleaning.getProperty())
+                .isComplete(false)
+                .build());
+        checklistItemRepository.save(CleaningChecklistItem.builder()
+                .cleaning(cleaning)
+                .customDescription("Clean the kitchen")
+                .build());
+        checklistItemRepository.save(CleaningChecklistItem.builder()
+                .cleaning(cleaning)
+                .customDescription("Change the bedding")
+                .isComplete(true)
+                .build());
+        CleaningChecklistItem otherItem = checklistItemRepository.save(
+                CleaningChecklistItem.builder()
+                        .cleaning(otherCleaning)
+                        .customDescription("Clean the bathroom")
+                        .build());
+        entityManager.flush();
+        entityManager.clear();
+
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(
+                        teamCleaner, null, teamCleaner.getAuthorities());
+        mvc.perform(patch("/cleanings/{cleaningId}/complete", cleaning.getId())
+                        .with(authentication(authentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isComplete").value(true))
+                .andExpect(jsonPath("$.cleaningChecklistItems[*].isComplete")
+                        .value(org.hamcrest.Matchers.contains(true, true)));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(cleaningRepository.findById(cleaning.getId()).orElseThrow()
+                .getIsComplete()).isTrue();
+        assertThat(checklistItemRepository.findAllByCleaning_Id(cleaning.getId()))
+                .extracting(CleaningChecklistItem::getIsComplete)
+                .containsExactly(true, true);
+        assertThat(checklistItemRepository.findById(otherItem.getId()).orElseThrow()
+                .getIsComplete()).isFalse();
     }
 
     @Test

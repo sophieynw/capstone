@@ -67,14 +67,13 @@ public class CleaningResponseService {
     @Transactional
     public CleaningResponse completeCleaning(Long cleaningId) {
         Cleaning cleaning = cleaningRepository
-            .findById(cleaningId)
+            .findByIdForUpdate(cleaningId)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Cleaning not found"
             ));
 
-        cleaning.setIsComplete(true);
-        cleaning.setDateTimeCompleted(LocalDateTime.now());
+        cleaning.markComplete();
 
         return toCleaningResponse(cleaning);
     }
@@ -91,7 +90,7 @@ public class CleaningResponseService {
             );
         }
 
-        Cleaning cleaning = cleaningRepository.findById(cleaningId)
+        Cleaning cleaning = cleaningRepository.findByIdForUpdate(cleaningId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Cleaning not found"
@@ -155,7 +154,7 @@ public class CleaningResponseService {
             );
         }
 
-        Cleaning cleaning = cleaningRepository.findById(cleaningId)
+        Cleaning cleaning = cleaningRepository.findByIdForUpdate(cleaningId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Cleaning not found"

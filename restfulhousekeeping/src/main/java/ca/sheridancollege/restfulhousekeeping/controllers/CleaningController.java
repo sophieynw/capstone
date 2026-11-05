@@ -129,11 +129,12 @@ public class CleaningController {
 	}
 
 	@PutMapping("/{id}")
+	@Transactional
 	public ResponseEntity<Cleaning> update(
 			@PathVariable Long id,
 			@RequestBody Cleaning updated,
 			@AuthenticationPrincipal User manager) {
-		return cleaningRepository.findById(id).map(existing -> {
+		return cleaningRepository.findByIdForUpdate(id).map(existing -> {
 			if (manager == null
 					|| manager.getRole() != Role.MANAGER
 					|| !existing.getManager().getId().equals(manager.getId())) {
@@ -148,7 +149,11 @@ public class CleaningController {
 			existing.setDateTimeStart(updated.getDateTimeStart());
 			existing.setDateTimeEnd(updated.getDateTimeEnd());
 			existing.setNotes(updated.getNotes());
-			existing.setIsComplete(updated.getIsComplete());
+			if (Boolean.TRUE.equals(updated.getIsComplete())) {
+				existing.markComplete();
+			} else {
+				existing.setIsComplete(updated.getIsComplete());
+			}
 			return ResponseEntity.ok(cleaningRepository.save(existing));
 		}).orElse(ResponseEntity.notFound().build());
 	}

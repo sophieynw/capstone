@@ -89,4 +89,12 @@ public class Cleaning {
 	private String reservationUrl;
 	private LocalDate importedCheckInDate;
 	private LocalDate importedCheckOutDate;
+
+	public void markComplete() {
+		if (!Boolean.TRUE.equals(isComplete) || dateTimeCompleted == null) {
+			dateTimeCompleted = LocalDateTime.now();
+		}
+		isComplete = true;
+		cleaningChecklistItems.forEach(item -> item.setIsComplete(true));
+	}
 }

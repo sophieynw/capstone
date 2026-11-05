@@ -88,7 +88,7 @@ export default function PropertyListScreen({ navigation }: any) {
           onPress={() => navigation.navigate('NewPropertyScreen')}
         >
           <ButtonIcon style={styles.buttonText} as={HousePlus} />
-          <ButtonText style={styles.buttonText}>Add a property</ButtonText>
+          <ButtonText style={styles.buttonText}>Add property</ButtonText>
         </Button>
       </View>
     </ScrollView>

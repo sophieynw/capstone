@@ -11,20 +11,15 @@ import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import './global.css';
 import { AuthProvider } from '@/auth/AuthProvider';
 import Navigation from '@/Navigation';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 export default function App() {
-  const queryClient = new QueryClient();
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <GluestackUIProvider mode='light'>
-          <AuthProvider>
-            <Navigation />
-          </AuthProvider>
-        </GluestackUIProvider>
-      </SafeAreaProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <GluestackUIProvider mode='light'>
+        <AuthProvider>
+          <Navigation />
+        </AuthProvider>
+      </GluestackUIProvider>
+    </SafeAreaProvider>
   );
 }

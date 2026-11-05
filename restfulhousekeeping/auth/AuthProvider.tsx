@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthContext } from './AuthContext';
 import { setUnauthorizedHandler } from '@/api/apiClient';
@@ -38,19 +38,35 @@ export function AuthProvider({ children }: Props) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const queryClient = useQueryClient();
+  const [queryClient, setQueryClient] = useState(() => new QueryClient());
+  const activeQueryClient = useRef(queryClient);
+  const logoutInFlight = useRef<Promise<void> | null>(null);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
+    if (logoutInFlight.current) return logoutInFlight.current;
+
     // Update React state first so navigation immediately switches to login.
     setToken(null);
     setUser(null);
-    queryClient.clear();
 
-    await Promise.all([
+    const previousClient = activeQueryClient.current;
+    const freshClient = new QueryClient();
+    activeQueryClient.current = freshClient;
+    setQueryClient(freshClient);
+    // Late mutation callbacks still reference the previous client's cache.
+    previousClient.clear();
+
+    const cleanup = Promise.all([
       SecureStore.deleteItemAsync(TOKEN_KEY),
       SecureStore.deleteItemAsync(USER_KEY),
-    ]);
-  }, [queryClient]);
+    ])
+      .then(() => undefined)
+      .finally(() => {
+        logoutInFlight.current = null;
+      });
+    logoutInFlight.current = cleanup;
+    return cleanup;
+  }, []);
 
   // Restore login when app starts
   useEffect(() => {
@@ -119,6 +135,7 @@ export function AuthProvider({ children }: Props) {
   }, [token, logout]);
 
   const login = async (token: string, user: User) => {
+    await logoutInFlight.current;
     await Promise.all([
       SecureStore.setItemAsync(TOKEN_KEY, token),
       SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
@@ -130,8 +147,9 @@ export function AuthProvider({ children }: Props) {
   };
 
   const update = async (updatedUser: User) => {
+    if (activeQueryClient.current !== queryClient) return;
     await SecureStore.setItemAsync(USER_KEY, JSON.stringify(updatedUser));
-    setUser(updatedUser);
+    if (activeQueryClient.current === queryClient) setUser(updatedUser);
   };
 
   const userId = user?.id;
@@ -158,7 +176,7 @@ export function AuthProvider({ children }: Props) {
         refreshUser
       }}
     >
-      {children}
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </AuthContext.Provider>
   );
 }

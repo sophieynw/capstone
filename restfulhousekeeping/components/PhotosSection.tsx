@@ -1,5 +1,4 @@
 import { Image, Modal, Pressable, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, X } from 'lucide-react-native';
 import { Heading } from '@/components/ui/heading';
 import { Text } from '@/components/ui/text';
@@ -9,6 +8,7 @@ import { API_BASE_URL, getApiErrorMessage } from '@/api/apiClient';
 import { cleaningPhotosPath } from '@/api/cleaningPhotosApi';
 import { AuthContext } from '@/auth/AuthContext';
 import { useCleaningPhotos } from '@/hooks/useCleaningPhotos';
+import { pickLibraryPhotos } from '@/utils/photoPicker';
 
 const MAX_PHOTOS = 10;
 
@@ -44,18 +44,9 @@ export function PhotosSection({ cleaningId, canUpload }: PhotosSectionProps) {
     setUploadError('');
     let uploading = false;
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsMultipleSelection: true,
-        selectionLimit: remaining,
-        preferredAssetRepresentationMode:
-          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-        quality: 0.8,
-      });
+      const assets = (await pickLibraryPhotos(remaining)).slice(0, remaining);
+      if (assets.length === 0) return;
 
-      if (result.canceled) return;
-
-      const assets = result.assets.slice(0, remaining);
       uploading = true;
       for (const [index, asset] of assets.entries()) {
         setBusyLabel(`Uploading ${index + 1} of ${assets.length}…`);

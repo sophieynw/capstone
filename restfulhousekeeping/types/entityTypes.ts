@@ -142,6 +142,7 @@ export interface CreateCleaningPayload {
   dateTimeEnd: string;
   notes: string | null;
   cleaningChecklistItems: CreateCleaningChecklistItem[];
+  excludedChecklistItemIds?: number[];
 }
 
 export interface CreateChecklistItemPayload {

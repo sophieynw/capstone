@@ -55,6 +55,7 @@ export function useUploadPropertyPicture() {
         queryClient.invalidateQueries({ queryKey: ['properties'] }),
         queryClient.invalidateQueries({ queryKey: ['upcoming-cleanings'] }),
         queryClient.invalidateQueries({ queryKey: ['cleaning-id'] }),
+        queryClient.invalidateQueries({ queryKey: ['due-checklist-items'] }),
         queryClient.invalidateQueries({ queryKey: ['completed-cleanings'] }),
       ]);
     },

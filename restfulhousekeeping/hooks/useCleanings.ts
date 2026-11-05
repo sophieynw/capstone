@@ -1,6 +1,6 @@
 // hooks/useCleanings.ts
 import { useContext } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AuthContext } from '@/auth/AuthContext';
 import {
   addCleaningChecklistItem,
@@ -22,6 +22,22 @@ import { Cleaning, CleaningNote } from '@/types/entityTypes';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getApiErrorMessage } from '@/api/apiClient';
+
+function invalidateRecurringChecklists(
+  queryClient: QueryClient,
+  propertyId: number,
+  changedCleaningId: number,
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['due-checklist-items', propertyId] }),
+    queryClient.invalidateQueries({
+      queryKey: ['cleaning-id'],
+      predicate: (query) =>
+        query.queryKey[1] !== changedCleaningId &&
+        (query.state.data as Cleaning | undefined)?.property?.id === propertyId,
+    }),
+  ]);
+}
 
 // fetches all upcoming cleanings for a user
 export function useUpcomingCleanings() {
@@ -114,6 +130,7 @@ export function useCreateCleaning() {
       );
 
       await Promise.all([
+        invalidateRecurringChecklists(queryClient, createdCleaning.property.id, createdCleaning.id),
         queryClient.invalidateQueries({
           queryKey: ['upcoming-cleanings', createdCleaning.managerId],
           exact: true,
@@ -166,6 +183,9 @@ export function useCompleteCleaning() {
         queryKey: ['completed-cleanings'],
         refetchType: 'all',
       });
+      void invalidateRecurringChecklists(queryClient, updatedCleaning.property.id, updatedCleaning.id);
+      void queryClient.invalidateQueries({ queryKey: ['checklist-items', updatedCleaning.property.id] });
+      void queryClient.invalidateQueries({ queryKey: ['next-property-cleaning', updatedCleaning.property.id] });
     },
   });
 }
@@ -231,6 +251,7 @@ export function useUpdateCleaningSchedule() {
       );
 
       await Promise.all([
+        invalidateRecurringChecklists(queryClient, updatedCleaning.property.id, updatedCleaning.id),
         queryClient.invalidateQueries({
           queryKey: ['upcoming-cleanings'],
           refetchType: 'all',
@@ -253,6 +274,7 @@ export function useDeleteCleaning() {
       deleteCleaning(cleaningId),
 
     onSuccess: (_, { cleaningId, propertyId }) => {
+      void invalidateRecurringChecklists(queryClient, propertyId, cleaningId);
       Alert.alert('Success', 'The cleaning was deleted.', [
         {
           text: 'OK',
@@ -352,6 +374,7 @@ export function useDeleteCleaningChecklistItem() {
     }) => deleteCleaningChecklistItem(cleaningId, itemId),
 
     onSuccess: (_, { cleaningId, propertyId, itemId }) => {
+      void invalidateRecurringChecklists(queryClient, propertyId, cleaningId);
       const removeItem = (cleaning: Cleaning | undefined) =>
         cleaning?.id === cleaningId
           ? {

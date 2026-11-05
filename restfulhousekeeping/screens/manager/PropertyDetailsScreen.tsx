@@ -1,6 +1,5 @@
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useEffect, useState } from 'react';
-import * as ImagePicker from 'expo-image-picker';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { styles } from '@/styles/styles';
@@ -41,6 +40,7 @@ import { Input, InputField } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorState } from '@/components/ErrorState';
 import { useIssues } from '@/hooks/useIssues';
+import { pickLibraryPhotos } from '@/utils/photoPicker';
 
 export default function PropertyDetailsScreen({ route }: any) {
   const { propertyId } = route.params;
@@ -140,24 +140,8 @@ export default function PropertyDetailsScreen({ route }: any) {
     setIsOpeningPicturePicker(true);
 
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
-
-      if (result.canceled) return;
-
-      const asset = result.assets[0];
-      uploadPropertyPictureMutation.mutate({
-        propertyId,
-        image: {
-          uri: asset.uri,
-          mimeType: asset.mimeType,
-          fileName: asset.fileName,
-        },
-      });
+      const [image] = await pickLibraryPhotos();
+      if (image) uploadPropertyPictureMutation.mutate({ propertyId, image });
     } catch {
       Alert.alert('Could not open photos', 'Please try again.');
     } finally {

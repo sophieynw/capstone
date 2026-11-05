@@ -1,6 +1,5 @@
 import { useContext, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { LogOut, UserPen } from 'lucide-react-native';
 
 import { AuthContext } from '@/auth/AuthContext';
@@ -27,6 +26,7 @@ import { sortAvailabilitySlots, toTitleCase } from '@/utils/helpers';
 import { usePropertyAll } from '@/hooks/useProperties';
 import { useCleaners } from '@/hooks/useUsers';
 import { useAvailabilities } from '@/hooks/useAvailabilities';
+import { pickLibraryPhotos } from '@/utils/photoPicker';
 // region Manager Summary Card
 
 export default function ProfileScreen({ navigation }: any) {
@@ -69,24 +69,8 @@ export default function ProfileScreen({ navigation }: any) {
     setIsOpeningPicturePicker(true);
 
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (result.canceled) return;
-
-      const asset = result.assets[0];
-      uploadMutation.mutate({
-        userId: user.id,
-        image: {
-          uri: asset.uri,
-          mimeType: asset.mimeType,
-          fileName: asset.fileName,
-        },
-      });
+      const [image] = await pickLibraryPhotos();
+      if (image) uploadMutation.mutate({ userId: user.id, image });
     } catch {
       Alert.alert('Could not open photos', 'Please try again.');
     } finally {

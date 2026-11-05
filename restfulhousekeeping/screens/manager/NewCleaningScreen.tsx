@@ -2,7 +2,7 @@
 import { Alert, ScrollView, View } from 'react-native';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
-import { useContext, useMemo, useState, useEffect } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { styles } from '@/styles/styles';
@@ -15,31 +15,10 @@ import { AuthContext } from '@/auth/AuthContext';
 import { useCreateCleaning } from '@/hooks/useCleanings';
 import { NotesSection } from '@/components/NotesSection';
 import { DetailsSection } from '@/components/DetailsSection';
-import { useChecklistItems } from '@/hooks/useChecklistItems';
+import { useDueChecklistItems } from '@/hooks/useChecklistItems';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorState } from '@/components/ErrorState';
 import { formatLocalDateTime, getAvailableCleaners } from '@/utils/helpers';
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function filterDueChecklistItems(items: ChecklistItem[]): ChecklistItem[] {
-  const today = startOfDay(new Date());
-
-  return items.filter((item) => {
-    if (!item.lastCompleted) {
-      return true;
-    }
-
-    const lastCompleted = startOfDay(new Date(item.lastCompleted));
-    const nextDueDate = new Date(lastCompleted);
-
-    nextDueDate.setDate(nextDueDate.getDate() + (item.frequencyDays ?? 0));
-
-    return nextDueDate <= today;
-  });
-}
 
 export default function NewCleaningScreen() {
   const { user } = useContext(AuthContext);
@@ -50,7 +29,8 @@ export default function NewCleaningScreen() {
   const [startDateSelected, setStartDateSelected] = useState(new Date());
   const [endDateSelected, setEndDateSelected] = useState(new Date());
   const [notes, setNotes] = useState('');
-  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [customItems, setCustomItems] = useState<ChecklistItem[]>([]);
+  const [excludedIds, setExcludedIds] = useState<number[]>([]);
 
   const {
     data: properties,
@@ -66,24 +46,35 @@ export default function NewCleaningScreen() {
     refetch: refetchCleaners,
   } = useCleaners();
   const propertyId = propertySelected ? Number(propertySelected) : undefined;
+  const dateTimeStart = formatLocalDateTime(startDateSelected);
+  const dateTimeEnd = formatLocalDateTime(endDateSelected);
   const {
-    data: propertyChecklistItems,
+    data: dueChecklistItems,
     isLoading: isChecklistItemsLoading,
     isError: isChecklistItemsError,
     error: checklistItemsError,
-  } = useChecklistItems(propertyId);
+  } = useDueChecklistItems(propertyId, dateTimeStart);
 
-  const dueChecklistItems = useMemo(
-    () => filterDueChecklistItems(propertyChecklistItems ?? []),
-    [propertyChecklistItems],
+  const checklistItems = useMemo(
+    () => [
+      ...(dueChecklistItems ?? []).filter((item) => !excludedIds.includes(item.id)),
+      ...customItems,
+    ],
+    [dueChecklistItems, excludedIds, customItems],
   );
 
-  useEffect(() => {
-    setChecklistItems(dueChecklistItems);
-  }, [dueChecklistItems]);
+  function handleChecklistChange(items: ChecklistItem[]) {
+    setCustomItems(items.filter((item) => item.id < 0));
+    setExcludedIds((previous) => [
+      ...new Set([
+        ...previous,
+        ...(dueChecklistItems ?? [])
+          .filter((item) => !items.some(({ id }) => id === item.id))
+          .map(({ id }) => id),
+      ]),
+    ]);
+  }
 
-  const dateTimeStart = formatLocalDateTime(startDateSelected);
-  const dateTimeEnd = formatLocalDateTime(endDateSelected);
   const availableCleaners = getAvailableCleaners(
     cleaners,
     dateTimeStart,
@@ -117,13 +108,9 @@ export default function NewCleaningScreen() {
       return;
     }
 
-    const cleaningChecklistItems = checklistItems
+    const cleaningChecklistItems = customItems
       .filter((item) => item.description.trim())
-      .map((item) =>
-        item.id > 0
-          ? { checklistItem: { id: item.id } }
-          : { customDescription: item.description.trim() },
-      );
+      .map((item) => ({ customDescription: item.description.trim() }));
 
     createCleaningMutation.mutate(
       {
@@ -136,6 +123,7 @@ export default function NewCleaningScreen() {
         dateTimeEnd,
         notes: notes.trim() || null,
         cleaningChecklistItems,
+        excludedChecklistItemIds: excludedIds,
       },
       {
         onError: () => {
@@ -172,7 +160,9 @@ export default function NewCleaningScreen() {
           style={[styles.button, styles.modalHeaderButton]}
           size='lg'
           onPress={handleSubmit}
-          isDisabled={createCleaningMutation.isPending}
+          isDisabled={
+            createCleaningMutation.isPending || isChecklistItemsLoading || isChecklistItemsError
+          }
         >
           <ButtonIcon style={styles.buttonText} as={SaveIcon} />
           <ButtonText style={styles.buttonText}>
@@ -187,7 +177,12 @@ export default function NewCleaningScreen() {
           <DetailsSection
             properties={properties}
             propertySelected={propertySelected}
-            setPropertySelected={setPropertySelected}
+            setPropertySelected={(property) => {
+              if (property === propertySelected) return;
+              setPropertySelected(property);
+              setExcludedIds([]);
+              setCustomItems([]);
+            }}
             cleaners={availableCleaners}
             cleanerSelected={cleanerSelected}
             setCleanerSelected={setCleanerSelected}
@@ -211,7 +206,7 @@ export default function NewCleaningScreen() {
           ) : (
             <ChecklistSection
               items={checklistItems}
-              onItemsChange={setChecklistItems}
+              onItemsChange={handleChecklistChange}
             />
           )}
 

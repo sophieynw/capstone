@@ -533,7 +533,7 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
 
         {cleaning.notes?.trim() && (
           <Card style={styles.mediumCard}>
-            <Heading size='md'>Cleaning Instructions</Heading>
+            <Heading size='md'>Additional Information</Heading>
             <Text>{cleaning.notes}</Text>
           </Card>
         )}

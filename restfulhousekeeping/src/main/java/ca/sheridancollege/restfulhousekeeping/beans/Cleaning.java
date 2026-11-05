@@ -1,12 +1,15 @@
 package ca.sheridancollege.restfulhousekeeping.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,6 +52,14 @@ public class Cleaning {
 	private LocalDateTime dateTimeStarted;
 	private LocalDateTime dateTimeCompleted;
 	private String notes;
+
+	@OneToMany(mappedBy = "cleaning", cascade = CascadeType.REMOVE)
+	@JsonIgnore
+	@EqualsAndHashCode.Exclude
+	@ToString.Exclude
+	@Builder.Default
+	private List<CleaningNote> cleaningNotes = new ArrayList<>();
+
 	
 	@OneToMany(
 		    mappedBy = "cleaning",

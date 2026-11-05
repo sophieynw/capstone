@@ -10,6 +10,7 @@ import ca.sheridancollege.restfulhousekeeping.models.UpdateCleaningCleanerReques
 import ca.sheridancollege.restfulhousekeeping.models.UpdateCleaningScheduleRequest;
 import ca.sheridancollege.restfulhousekeeping.repositories.ChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
+import ca.sheridancollege.restfulhousekeeping.services.CleaningPhotoService;
 import ca.sheridancollege.restfulhousekeeping.services.CleaningResponseService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -17,6 +18,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -30,6 +32,7 @@ public class CleaningController {
 
 	private final CleaningRepository cleaningRepository;
 	private final CleaningResponseService cleaningResponseService;
+	private final CleaningPhotoService cleaningPhotoService;
 	private final ChecklistItemRepository checklistItemRepository;
 
 	// GET all upcoming cleanings by userId
@@ -151,8 +154,10 @@ public class CleaningController {
 	}
 
 	@DeleteMapping("/{id}")
-	public ResponseEntity<Void> delete(@PathVariable Long id) {
-		Cleaning cleaning = cleaningRepository.findById(id)
+	@Transactional
+	public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal User manager) {
+		Cleaning cleaning = cleaningRepository.findByIdForUpdate(id)
+				.filter(existing -> existing.getManager().getId().equals(manager.getId()))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
 		if (Boolean.TRUE.equals(cleaning.getIsComplete())) {
@@ -162,6 +167,7 @@ public class CleaningController {
 			);
 		}
 
+		cleaningPhotoService.deleteCloudPhotosAfterCleaningRemoval(List.of(id));
 		cleaningRepository.delete(cleaning);
 		return ResponseEntity.noContent().build();
 	}

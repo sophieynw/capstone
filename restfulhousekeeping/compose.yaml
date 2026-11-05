@@ -11,6 +11,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-restfulhousekeeping}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-local-dev-password}
       APP_BOOTSTRAP_ENABLED: ${APP_BOOTSTRAP_ENABLED:-true}
+      IMAGEKIT_PRIVATE_KEY: ${IMAGEKIT_PRIVATE_KEY:-}
     depends_on:
       db:
         condition: service_healthy

@@ -1,10 +1,13 @@
 package ca.sheridancollege.restfulhousekeeping.controllers;
 
+import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CreatePropertyRequest;
 import ca.sheridancollege.restfulhousekeeping.models.PropertyResponse;
 import ca.sheridancollege.restfulhousekeeping.models.UpdatePropertyRequest;
+import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
+import ca.sheridancollege.restfulhousekeeping.services.CleaningPhotoService;
 import ca.sheridancollege.restfulhousekeeping.services.ImageKitService;
 import ca.sheridancollege.restfulhousekeeping.services.PropertyResponseService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,6 +31,8 @@ public class PropertyController {
     private final PropertyRepository propertyRepository;
     private final PropertyResponseService propertyResponseService;
     private final ImageKitService imageKitService;
+    private final CleaningRepository cleaningRepository;
+    private final CleaningPhotoService cleaningPhotoService;
 
     // GET ALL properties for authenticated manager
     @GetMapping
@@ -100,9 +105,12 @@ public class PropertyController {
 
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        return propertyRepository.findById(id)
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal User manager) {
+        return propertyRepository.findByIdAndManager_Id(id, manager.getId())
                 .map(property -> {
+                    List<Long> cleaningIds = property.getCleanings().stream().map(Cleaning::getId).sorted().toList();
+                    cleaningIds.forEach(cleaningRepository::findByIdForUpdate);
+                    cleaningPhotoService.deleteCloudPhotosAfterCleaningRemoval(cleaningIds);
                     propertyRepository.delete(property);
                     return ResponseEntity.noContent().<Void>build();
                 })

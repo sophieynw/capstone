@@ -60,6 +60,13 @@ public class Cleaning {
 	@Builder.Default
 	private List<CleaningNote> cleaningNotes = new ArrayList<>();
 
+	@OneToMany(mappedBy = "cleaning", cascade = CascadeType.REMOVE)
+	@JsonIgnore
+	@EqualsAndHashCode.Exclude
+	@ToString.Exclude
+	@Builder.Default
+	private List<CleaningPhoto> cleaningPhotos = new ArrayList<>();
+
 	
 	@OneToMany(
 		    mappedBy = "cleaning",

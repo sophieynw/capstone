@@ -107,6 +107,15 @@ export interface AvailabilitySlot {
   endTime: string;
 }
 
+export type CleanerAvailabilitySlot = Pick<
+  AvailabilitySlot,
+  'dayOfWeek' | 'startTime' | 'endTime'
+>;
+
+export interface Cleaner extends User {
+  availabilitySlots?: CleanerAvailabilitySlot[];
+}
+
 export type CreateCleaningChecklistItem =
   | {
       checklistItem: {

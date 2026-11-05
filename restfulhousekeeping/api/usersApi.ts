@@ -1,4 +1,4 @@
-import { UpdateUserPayload, User } from '@/types/entityTypes';
+import { Cleaner, UpdateUserPayload, User } from '@/types/entityTypes';
 import { request } from '@/api/apiClient';
 
 export function getUserById(userId: number | null): Promise<User> {
@@ -19,8 +19,8 @@ export function updateUserById(
   });
 }
 
-export function getAllCleaners(organizationId: number): Promise<User[]> {
-  return request<User[]>({
+export function getAllCleaners(organizationId: number): Promise<Cleaner[]> {
+  return request<Cleaner[]>({
     method: 'GET',
     url: `/cleaners/${organizationId}/cleaners`,
   });

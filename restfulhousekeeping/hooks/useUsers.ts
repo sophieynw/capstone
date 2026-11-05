@@ -23,14 +23,14 @@ export function useCleanerById(userId: number | null) {
   });
 }
 
-export function useCleaners() {
+export function useCleaners(enabled = true) {
   const { user } = useContext(AuthContext);
   const organizationId = user?.organization?.id;
 
   return useQuery({
     queryKey: ['cleaners', organizationId],
     queryFn: () => getAllCleaners(organizationId!),
-    enabled: !!organizationId,
+    enabled: enabled && !!organizationId,
   });
 }
 

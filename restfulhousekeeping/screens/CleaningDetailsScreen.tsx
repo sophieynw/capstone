@@ -7,7 +7,12 @@ import {
   IssueType,
   Role,
 } from '@/types/entityTypes';
-import { formatLocalDateTime, toFriendlyDate } from '@/utils/helpers';
+import {
+  formatLocalDateTime,
+  getAvailableCleaners,
+  toFriendlyDate,
+} from '@/utils/helpers';
+import { getApiErrorMessage } from '@/api/apiClient';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useCleaners } from '@/hooks/useUsers';
 import { styles } from '@/styles/styles';
@@ -121,9 +126,11 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
   const {
     data: cleaners,
     isPending: isCleanersPending,
+    isFetching: isCleanersFetching,
     isError: isCleanersError,
     error: cleanersError,
-  } = useCleaners();
+    refetch: refetchCleaners,
+  } = useCleaners(user?.role === Role.MANAGER);
 
   const completeCleaningMutation = useCompleteCleaning();
   const deleteCleaningMutation = useDeleteCleaning();
@@ -141,15 +148,23 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
   const selectedCleaner = cleaners?.find(
     (cleaner) => cleaner.id.toString() === cleanerSelected,
   );
+  const availableCleaners = getAvailableCleaners(
+    cleaners,
+    cleaning.dateTimeStart,
+    cleaning.dateTimeEnd,
+  );
 
   const selectedCleanerLabel =
     cleanerSelected === UNASSIGNED_CLEANER_VALUE
       ? 'Unassigned'
       : selectedCleaner
         ? `${selectedCleaner.firstName} ${selectedCleaner.lastName}`
-        : undefined;
+        : 'Assigned cleaner';
 
-  if (isCleanersPending || isCleaningPending) {
+  if (
+    isCleaningPending ||
+    (user?.role === Role.MANAGER && user.organization && isCleanersPending)
+  ) {
     return <LoadingSpinner label='Loading cleaning details...' />;
   }
 
@@ -231,7 +246,11 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
   }
 
   function handleCleanerChange(value: string) {
-    if (value === cleanerSelected || updateCleanerMutation.isPending) {
+    if (
+      value === cleanerSelected ||
+      updateCleanerMutation.isPending ||
+      updateScheduleMutation.isPending
+    ) {
       return;
     }
 
@@ -246,9 +265,13 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
         onError: (error) => {
           console.error('Update cleaning cleaner error:', error);
           setCleanerSelected(previousValue);
+          if (user?.organization) void refetchCleaners();
           Alert.alert(
             'Unable to assign cleaner',
-            'The cleaner assignment could not be updated.',
+            getApiErrorMessage(
+              error,
+              'The cleaner assignment could not be updated.',
+            ),
           );
         },
       },
@@ -421,7 +444,7 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
                 onEndDateChange={(date) =>
                   handleScheduleChange(startDateSelected, date)
                 }
-                disabled={updateScheduleMutation.isPending}
+                disabled={updateScheduleMutation.isPending || updateCleanerMutation.isPending}
               />
             ) : (
               <>
@@ -439,11 +462,16 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
                 ) : (
                   <Select
                     selectedValue={cleanerSelected}
-                    initialLabel={selectedCleanerLabel}
                     onValueChange={handleCleanerChange}
+                    isDisabled={
+                      updateCleanerMutation.isPending || updateScheduleMutation.isPending
+                    }
+                    onOpen={() => {
+                      if (user.organization) void refetchCleaners();
+                    }}
                   >
                     <SelectTrigger size='md' variant='rounded'>
-                      <SelectInput placeholder='Unassigned' />
+                      <SelectInput value={selectedCleanerLabel} />
                       <SelectIcon className='mr-3' as={ChevronDown} />
                     </SelectTrigger>
 
@@ -460,7 +488,18 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
                           value={UNASSIGNED_CLEANER_VALUE}
                         />
 
-                        {cleaners?.map((cleanerItem) => (
+                        {availableCleaners.length === 0 && (
+                          <SelectItem
+                            isDisabled
+                            label={
+                              isCleanersFetching
+                                ? 'Checking availability…'
+                                : 'No cleaners are available for this time.'
+                            }
+                            value='no-available-cleaners'
+                          />
+                        )}
+                        {availableCleaners.map((cleanerItem) => (
                           <SelectItem
                             key={cleanerItem.id}
                             label={`${cleanerItem.firstName} ${cleanerItem.lastName}`}

@@ -21,6 +21,7 @@ import {
 import { Cleaning, CleaningNote } from '@/types/entityTypes';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { getApiErrorMessage } from '@/api/apiClient';
 
 // fetches all upcoming cleanings for a user
 export function useUpcomingCleanings() {
@@ -137,7 +138,10 @@ export function useCreateCleaning() {
     onError: (error) => {
       console.error('Create cleaning error:', error);
 
-      Alert.alert('Unable to save', 'The cleaning could not be created.');
+      Alert.alert(
+        'Unable to save',
+        getApiErrorMessage(error, 'The cleaning could not be created.'),
+      );
     },
   });
 }

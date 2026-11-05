@@ -18,7 +18,7 @@ import { DetailsSection } from '@/components/DetailsSection';
 import { useChecklistItems } from '@/hooks/useChecklistItems';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorState } from '@/components/ErrorState';
-import { formatLocalDateTime } from '@/utils/helpers';
+import { formatLocalDateTime, getAvailableCleaners } from '@/utils/helpers';
 
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -63,6 +63,7 @@ export default function NewCleaningScreen() {
     isLoading: isCleanersLoading,
     isError: isCleanersError,
     error: cleanersError,
+    refetch: refetchCleaners,
   } = useCleaners();
   const propertyId = propertySelected ? Number(propertySelected) : undefined;
   const {
@@ -81,6 +82,17 @@ export default function NewCleaningScreen() {
     setChecklistItems(dueChecklistItems);
   }, [dueChecklistItems]);
 
+  const dateTimeStart = formatLocalDateTime(startDateSelected);
+  const dateTimeEnd = formatLocalDateTime(endDateSelected);
+  const availableCleaners = getAvailableCleaners(
+    cleaners,
+    dateTimeStart,
+    dateTimeEnd,
+  );
+  const selectedCleaner = availableCleaners.find(
+    (cleaner) => cleaner.id.toString() === cleanerSelected,
+  );
+
   function handleSubmit() {
     if (!user) {
       Alert.alert('Error', 'You must be signed in.');
@@ -92,8 +104,16 @@ export default function NewCleaningScreen() {
       return;
     }
 
-    if (endDateSelected <= startDateSelected) {
+    if (dateTimeEnd <= dateTimeStart) {
       Alert.alert('Invalid time', 'The end time must be after the start time.');
+      return;
+    }
+
+    if (cleanerSelected && !selectedCleaner) {
+      Alert.alert(
+        'Cleaner unavailable',
+        'Select an available cleaner or choose Unassigned.',
+      );
       return;
     }
 
@@ -105,17 +125,24 @@ export default function NewCleaningScreen() {
           : { customDescription: item.description.trim() },
       );
 
-    createCleaningMutation.mutate({
-      manager: { id: user.id, role: Role.MANAGER },
-      cleaner: cleanerSelected
-        ? { id: Number(cleanerSelected), role: Role.CLEANER }
-        : null,
-      property: { id: Number(propertySelected) },
-      dateTimeStart: formatLocalDateTime(startDateSelected),
-      dateTimeEnd: formatLocalDateTime(endDateSelected),
-      notes: notes.trim() || null,
-      cleaningChecklistItems,
-    });
+    createCleaningMutation.mutate(
+      {
+        manager: { id: user.id, role: Role.MANAGER },
+        cleaner: selectedCleaner
+          ? { id: selectedCleaner.id, role: Role.CLEANER }
+          : null,
+        property: { id: Number(propertySelected) },
+        dateTimeStart,
+        dateTimeEnd,
+        notes: notes.trim() || null,
+        cleaningChecklistItems,
+      },
+      {
+        onError: () => {
+          if (user.organization) void refetchCleaners();
+        },
+      },
+    );
   }
 
   if (isPropertiesLoading || isCleanersLoading) {
@@ -161,7 +188,7 @@ export default function NewCleaningScreen() {
             properties={properties}
             propertySelected={propertySelected}
             setPropertySelected={setPropertySelected}
-            cleaners={cleaners}
+            cleaners={availableCleaners}
             cleanerSelected={cleanerSelected}
             setCleanerSelected={setCleanerSelected}
             startDateSelected={startDateSelected}
@@ -169,6 +196,9 @@ export default function NewCleaningScreen() {
             endDateSelected={endDateSelected}
             setEndDateSelected={setEndDateSelected}
           />
+          {cleanerSelected && !selectedCleaner && (
+            <Text>The selected cleaner is unavailable for this time.</Text>
+          )}
           {!propertyId ? (
             <View className='gap-2'>
               <Heading size='md'>Checklist</Heading>

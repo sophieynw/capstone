@@ -2,6 +2,7 @@
 import {
   DaysOfTheWeek,
   type AvailabilitySlot,
+  type Cleaner,
   type Cleaning,
 } from '@/types/entityTypes';
 
@@ -28,6 +29,53 @@ export function sortAvailabilitySlots(
       DAY_ORDER[first.dayOfWeek] - DAY_ORDER[second.dayOfWeek] ||
       timeToMinutes(first.startTime) - timeToMinutes(second.startTime),
   );
+}
+
+function timeToSeconds(time: string): number {
+  const [hours, minutes, seconds = 0] = time.split(':').map(Number);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+export function getAvailableCleaners(
+  cleaners: Cleaner[] | undefined,
+  start: string | null,
+  end: string | null,
+): Cleaner[] {
+  if (!start || !end) return [];
+
+  const [startDate, startTime] = start.split('T');
+  const [endDate, endTime] = end.split('T');
+  if (startDate !== endDate || !startTime || !endTime) return [];
+
+  const startSeconds = timeToSeconds(startTime);
+  const endSeconds = timeToSeconds(endTime);
+  if (!(endSeconds > startSeconds)) return [];
+
+  // The API uses local calendar dates. UTC here only identifies the weekday.
+  const weekdays = [
+    DaysOfTheWeek.SUNDAY,
+    DaysOfTheWeek.MONDAY,
+    DaysOfTheWeek.TUESDAY,
+    DaysOfTheWeek.WEDNESDAY,
+    DaysOfTheWeek.THURSDAY,
+    DaysOfTheWeek.FRIDAY,
+    DaysOfTheWeek.SATURDAY,
+  ];
+  const day = weekdays[new Date(startDate).getUTCDay()];
+
+  return (cleaners ?? []).filter((cleaner) => {
+    const slots = (cleaner.availabilitySlots ?? [])
+      .filter((slot) => slot.dayOfWeek === day && slot.startTime && slot.endTime)
+      .sort((a, b) => timeToSeconds(a.startTime) - timeToSeconds(b.startTime));
+
+    let coveredUntil = startSeconds;
+    for (const slot of slots) {
+      if (timeToSeconds(slot.startTime) > coveredUntil) break;
+      coveredUntil = Math.max(coveredUntil, timeToSeconds(slot.endTime));
+      if (coveredUntil >= endSeconds) return true;
+    }
+    return false;
+  });
 }
 
 export function toTitleCase(value: string): string {

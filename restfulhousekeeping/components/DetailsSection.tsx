@@ -73,10 +73,12 @@ export function DetailsSection({
         {/* Cleaner */}
         <Select
           selectedValue={cleanerSelected}
-          onValueChange={setCleanerSelected}
+          onValueChange={(value) =>
+            setCleanerSelected(value === 'unassigned' ? '' : value)
+          }
         >
           <SelectTrigger size='md' variant='rounded'>
-            <SelectInput placeholder='Cleaner' />
+            <SelectInput placeholder='Unassigned' />
             <SelectIcon className='mr-3' as={ChevronDown} />
           </SelectTrigger>
           <SelectPortal useRNModal>
@@ -85,6 +87,7 @@ export function DetailsSection({
               <SelectDragIndicatorWrapper>
                 <SelectDragIndicator />
               </SelectDragIndicatorWrapper>
+              <SelectItem label='Unassigned' value='unassigned' />
               {cleaners?.map((cleanerItem) => (
                 <SelectItem
                   key={cleanerItem.id}

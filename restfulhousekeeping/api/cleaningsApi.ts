@@ -103,3 +103,15 @@ export function deleteCleaningChecklistItem(
     url: `/cleanings/${cleaningId}/checklist-items/${itemId}`,
   });
 }
+
+export function updateCleaningChecklistItem(
+  cleaningId: number,
+  itemId: number,
+  isComplete: boolean,
+): Promise<CleaningChecklistItem> {
+  return request<CleaningChecklistItem>({
+    method: 'PATCH',
+    url: `/cleanings/${cleaningId}/checklist-items/${itemId}`,
+    data: { isComplete },
+  });
+}

@@ -14,7 +14,9 @@ import lombok.ToString;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -77,6 +79,18 @@ public class Cleaning {
 	@Builder.Default
 	private List<CleaningChecklistItem> cleaningChecklistItems = new ArrayList<>();
 	private Boolean isComplete;
+
+	@JsonIgnore
+	private Boolean scheduleRecurringChecklist;
+
+	@ElementCollection
+	@CollectionTable(name = "cleaning_checklist_exclusion", joinColumns = @JoinColumn(name = "cleaningId"))
+	@Column(name = "checklistItemId", nullable = false)
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+	@EqualsAndHashCode.Exclude
+	@ToString.Exclude
+	@Builder.Default
+	private Set<Long> excludedChecklistItemIds = new HashSet<>();
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)

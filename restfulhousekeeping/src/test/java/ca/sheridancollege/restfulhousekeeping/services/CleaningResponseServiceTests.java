@@ -23,10 +23,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import ca.sheridancollege.restfulhousekeeping.beans.AvailabilitySlot;
+import ca.sheridancollege.restfulhousekeeping.beans.ChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
 import ca.sheridancollege.restfulhousekeeping.beans.CleaningChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.DayOfWeek;
@@ -36,6 +38,7 @@ import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningResponse;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningChecklistItemRepository;
+import ca.sheridancollege.restfulhousekeeping.repositories.ChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.OrganizationRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
@@ -51,6 +54,7 @@ class CleaningResponseServiceTests {
     @Autowired CleaningResponseService service;
     @Autowired CleaningRepository cleaningRepository;
     @Autowired CleaningChecklistItemRepository checklistItemRepository;
+    @Autowired ChecklistItemRepository checklistTemplateRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired PropertyRepository propertyRepository;
     @Autowired SlotRepository slotRepository;
@@ -88,6 +92,83 @@ class CleaningResponseServiceTests {
                 .property(property)
                 .isComplete(false)
                 .build());
+    }
+
+    @Test
+    void movesRecurringTasksToTheEarliestEligibleCleaningAndRecordsCompletion() throws Exception {
+        ChecklistItem template = checklistTemplateRepository.save(ChecklistItem.builder()
+                .property(cleaning.getProperty())
+                .description("Replace the furnace filter")
+                .frequencyDays(45)
+                .build());
+        LocalDateTime early = LocalDateTime.now().toLocalDate().plusDays(1).atTime(10, 0);
+        LocalDateTime late = early.plusDays(4);
+        Long propertyId = cleaning.getProperty().getId();
+        UsernamePasswordAuthenticationToken principal =
+                new UsernamePasswordAuthenticationToken(manager, null, manager.getAuthorities());
+
+        createScheduledCleaning(principal, propertyId, late, "[]")
+                .andExpect(jsonPath("$.cleaningChecklistItems[0].description").value("Replace the furnace filter"));
+        mvc.perform(get("/checklist-items/{propertyId}/due", propertyId)
+                        .param("start", early.toString())
+                        .with(authentication(principal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(template.getId()));
+        createScheduledCleaning(principal, propertyId, early, "[]")
+                .andExpect(jsonPath("$.cleaningChecklistItems[0].description").value("Replace the furnace filter"));
+        entityManager.flush();
+        entityManager.clear();
+
+        var visits = cleaningRepository.findPendingChecklistSchedule(propertyId, LocalDateTime.now());
+        assertThat(visits).hasSize(2);
+        assertThat(visits.getFirst().getCleaningChecklistItems()).hasSize(1);
+        assertThat(visits.getLast().getCleaningChecklistItems()).isEmpty();
+        mvc.perform(get("/checklist-items/{propertyId}/due", propertyId)
+                        .param("start", late.toString())
+                        .with(authentication(principal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        mvc.perform(delete("/cleanings/{cleaningId}", visits.getFirst().getId())
+                        .with(authentication(principal)))
+                .andExpect(status().isNoContent());
+        Long laterCleaningId = visits.getLast().getId();
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(checklistItemRepository.findAllByCleaning_Id(laterCleaningId)).hasSize(1);
+
+        createScheduledCleaning(principal, propertyId, early, "[" + template.getId() + "]")
+                .andExpect(jsonPath("$.cleaningChecklistItems").isEmpty());
+        assertThat(checklistItemRepository.findAllByCleaning_Id(laterCleaningId)).hasSize(1);
+
+        mvc.perform(patch("/cleanings/{cleaningId}/complete", laterCleaningId)
+                        .with(authentication(principal)))
+                .andExpect(status().isOk());
+        entityManager.flush();
+        entityManager.clear();
+        Cleaning completed = cleaningRepository.findById(laterCleaningId).orElseThrow();
+        assertThat(checklistTemplateRepository.findById(template.getId()).orElseThrow().getLastCompleted())
+                .isEqualTo(completed.getDateTimeCompleted());
+    }
+
+    private ResultActions createScheduledCleaning(
+            UsernamePasswordAuthenticationToken principal, Long propertyId,
+            LocalDateTime start, String exclusions) throws Exception {
+        String payload = """
+                {
+                  "manager": {"id": %d, "role": "MANAGER"},
+                  "property": {"id": %d},
+                  "dateTimeStart": "%s",
+                  "dateTimeEnd": "%s",
+                  "cleaningChecklistItems": [],
+                  "excludedChecklistItemIds": %s
+                }
+                """.formatted(manager.getId(), propertyId, start, start.plusHours(2), exclusions);
+        return mvc.perform(post("/cleanings")
+                        .with(authentication(principal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated());
     }
 
     @Test

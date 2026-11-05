@@ -8,15 +8,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import ca.sheridancollege.restfulhousekeeping.beans.ChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
-import ca.sheridancollege.restfulhousekeeping.beans.CleaningChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.CleaningSource;
 import ca.sheridancollege.restfulhousekeeping.beans.Property;
 import ca.sheridancollege.restfulhousekeeping.exceptions.CalendarImportException;
 import ca.sheridancollege.restfulhousekeeping.models.CalendarPersistenceResult;
 import ca.sheridancollege.restfulhousekeeping.models.ImportedReservation;
-import ca.sheridancollege.restfulhousekeeping.repositories.ChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
 import lombok.AllArgsConstructor;
@@ -30,14 +27,14 @@ public class CalendarImportPersistenceService {
 
 	private final PropertyRepository propertyRepository;
 	private final CleaningRepository cleaningRepository;
-	private final ChecklistItemRepository checklistItemRepository;
+	private final RecurringChecklistService recurringChecklistService;
 
 	@Transactional
 	public CalendarPersistenceResult saveReservations(
 		Long propertyId,
 		List<ImportedReservation> reservations
 	) {
-		Property property = propertyRepository.findById(propertyId)
+		Property property = propertyRepository.findByIdForUpdate(propertyId)
 			.orElseThrow(() -> new CalendarImportException(
 				HttpStatus.NOT_FOUND,
 				"Property not found: " + propertyId
@@ -56,8 +53,6 @@ public class CalendarImportPersistenceService {
 			);
 		}
 
-		List<ChecklistItem> checklistTemplates =
-			checklistItemRepository.findAllByProperty_Id(propertyId);
 		List<Long> cleaningIds = new ArrayList<>();
 		int skipped = 0;
 
@@ -84,6 +79,7 @@ public class CalendarImportPersistenceService {
 				.dateTimeCompleted(null)
 				.notes("Created from Airbnb reservation " + reservation.reservationCode())
 				.isComplete(false)
+				.scheduleRecurringChecklist(true)
 				.source(CleaningSource.AIRBNB_ICAL)
 				.externalEventUid(reservation.eventUid())
 				.externalReservationCode(reservation.reservationCode())
@@ -92,18 +88,11 @@ public class CalendarImportPersistenceService {
 				.importedCheckOutDate(reservation.checkOutDate())
 				.build();
 
-			List<CleaningChecklistItem> cleaningItems = checklistTemplates.stream()
-				.map(template -> CleaningChecklistItem.builder()
-					.cleaning(cleaning)
-					.checklistItem(template)
-					.isComplete(false)
-					.build())
-				.toList();
-			cleaning.setCleaningChecklistItems(new ArrayList<>(cleaningItems));
-
 			Cleaning saved = cleaningRepository.save(cleaning);
 			cleaningIds.add(saved.getId());
 		}
+
+		if (!cleaningIds.isEmpty()) recurringChecklistService.reconcile(propertyId);
 
 		return new CalendarPersistenceResult(
 			cleaningIds.size(),

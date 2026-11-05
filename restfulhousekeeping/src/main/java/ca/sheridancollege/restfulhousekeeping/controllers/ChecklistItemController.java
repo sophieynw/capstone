@@ -1,15 +1,21 @@
 package ca.sheridancollege.restfulhousekeeping.controllers;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import ca.sheridancollege.restfulhousekeeping.beans.ChecklistItem;
+import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.repositories.ChecklistItemRepository;
+import ca.sheridancollege.restfulhousekeeping.services.RecurringChecklistService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.AllArgsConstructor;
 
@@ -20,6 +26,15 @@ import lombok.AllArgsConstructor;
 public class ChecklistItemController {
 
     private final ChecklistItemRepository checklistItemRepository;
+    private final RecurringChecklistService recurringChecklistService;
+
+    @GetMapping("/{propertyId}/due")
+    public List<ChecklistItem> getDueChecklistItems(
+            @PathVariable Long propertyId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @AuthenticationPrincipal User manager) {
+        return recurringChecklistService.preview(propertyId, start, manager);
+    }
     
     @GetMapping("/{propertyId}")
     public ResponseEntity<List<ChecklistItem>> getChecklistItems(@PathVariable Long propertyId) {

@@ -106,7 +106,8 @@ public class PropertyController {
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal User manager) {
-        return propertyRepository.findByIdAndManager_Id(id, manager.getId())
+        return propertyRepository.findByIdForUpdate(id)
+                .filter(property -> property.getManager().getId().equals(manager.getId()))
                 .map(property -> {
                     List<Long> cleaningIds = property.getCleanings().stream().map(Cleaning::getId).sorted().toList();
                     cleaningIds.forEach(cleaningRepository::findByIdForUpdate);

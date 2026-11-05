@@ -7,6 +7,7 @@ import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningChecklistItemResponse;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
+import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,8 @@ public class CleaningChecklistItemService {
     private final CleaningRepository cleaningRepository;
     private final CleaningChecklistItemRepository itemRepository;
     private final CleaningChecklistItemResponseService responseService;
+    private final PropertyRepository propertyRepository;
+    private final RecurringChecklistService recurringChecklistService;
 
     @Transactional
     public CleaningChecklistItemResponse addCustomItem(
@@ -39,7 +42,8 @@ public class CleaningChecklistItemService {
 
     @Transactional
     public void deleteItem(Long cleaningId, Long itemId, User manager) {
-        getManagedCleaning(cleaningId, manager);
+        propertyRepository.findByCleaningIdForUpdate(cleaningId);
+        Cleaning cleaning = getManagedCleaning(cleaningId, manager);
 
         CleaningChecklistItem item = itemRepository
                 .findByIdAndCleaning_Id(itemId, cleaningId)
@@ -48,7 +52,12 @@ public class CleaningChecklistItemService {
                         "Cleaning checklist item not found"
                 ));
 
+        cleaning.getCleaningChecklistItems().removeIf(existing -> itemId.equals(existing.getId()));
         itemRepository.delete(item);
+        if (item.getChecklistItem() != null) {
+            cleaning.getExcludedChecklistItemIds().add(item.getChecklistItem().getId());
+            recurringChecklistService.reconcile(cleaning.getProperty().getId());
+        }
     }
 
     @Transactional
@@ -58,6 +67,7 @@ public class CleaningChecklistItemService {
         boolean isComplete,
         User user) {
 
+        propertyRepository.findByCleaningIdForUpdate(cleaningId);
         Cleaning cleaning = cleaningRepository.findByIdForUpdate(cleaningId)
             .orElseThrow(() -> new ResponseStatusException(
                     HttpStatus.NOT_FOUND,

@@ -1,6 +1,7 @@
 package ca.sheridancollege.restfulhousekeeping.beans;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -45,4 +46,7 @@ public class CleaningChecklistItem {
 
     @Builder.Default
     private Boolean isComplete = false;
+
+    @JsonIgnore
+    private Boolean automaticallyScheduled;
 }

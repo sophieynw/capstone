@@ -3,6 +3,7 @@ package ca.sheridancollege.restfulhousekeeping.controllers;
 import ca.sheridancollege.restfulhousekeeping.beans.ChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
 import ca.sheridancollege.restfulhousekeeping.beans.CleaningSource;
+import ca.sheridancollege.restfulhousekeeping.beans.Property;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningResponse;
@@ -10,8 +11,10 @@ import ca.sheridancollege.restfulhousekeeping.models.UpdateCleaningCleanerReques
 import ca.sheridancollege.restfulhousekeeping.models.UpdateCleaningScheduleRequest;
 import ca.sheridancollege.restfulhousekeeping.repositories.ChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
+import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
 import ca.sheridancollege.restfulhousekeeping.services.CleaningPhotoService;
 import ca.sheridancollege.restfulhousekeeping.services.CleaningResponseService;
+import ca.sheridancollege.restfulhousekeeping.services.RecurringChecklistService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.AllArgsConstructor;
@@ -22,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +40,8 @@ public class CleaningController {
 	private final CleaningResponseService cleaningResponseService;
 	private final CleaningPhotoService cleaningPhotoService;
 	private final ChecklistItemRepository checklistItemRepository;
+	private final PropertyRepository propertyRepository;
+	private final RecurringChecklistService recurringChecklistService;
 
 	// GET all upcoming cleanings by userId
 	@GetMapping("/upcoming/{userId}")
@@ -72,13 +79,22 @@ public class CleaningController {
 	public ResponseEntity<CleaningResponse> create(
 			@RequestBody Cleaning cleaning, @AuthenticationPrincipal User manager) {
 
+		if (cleaning.getProperty() == null || cleaning.getProperty().getId() == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Property ID is required");
+		}
+		Property property = propertyRepository.findByIdForUpdate(cleaning.getProperty().getId())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Property not found"));
+		if (manager == null || manager.getRole() != Role.MANAGER
+				|| !property.getManager().getId().equals(manager.getId())
+				|| cleaning.getManager() == null || !manager.getId().equals(cleaning.getManager().getId())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only schedule cleanings for your own properties");
+		}
+		cleaning.setProperty(property);
+		cleaning.setManager(property.getManager());
+
 		if (cleaning.getCleaner() != null) {
 			if (cleaning.getCleaner().getId() == null) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cleaner ID is required");
-			}
-			if (manager == null || cleaning.getManager() == null
-					|| !manager.getId().equals(cleaning.getManager().getId())) {
-				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only assign cleaners to your own cleanings");
 			}
 			cleaning.setCleaner(cleaningResponseService.resolveAvailableCleaner(
 					cleaning.getCleaner().getId(), manager, cleaning.getDateTimeStart(), cleaning.getDateTimeEnd()));
@@ -89,6 +105,13 @@ public class CleaningController {
 		cleaning.setSource(CleaningSource.MANUAL);
 		cleaning.setDateTimeStarted(null);
 		cleaning.setDateTimeCompleted(null);
+		cleaning.setScheduleRecurringChecklist(true);
+		if (cleaning.getExcludedChecklistItemIds() == null) {
+			cleaning.setExcludedChecklistItemIds(new HashSet<>());
+		}
+		if (cleaning.getCleaningChecklistItems() == null) {
+			cleaning.setCleaningChecklistItems(new ArrayList<>());
+		}
 
 		cleaning.getCleaningChecklistItems().forEach(item -> {
 			item.setId(null);
@@ -99,13 +122,16 @@ public class CleaningController {
 				Long checklistItemId = item.getChecklistItem().getId();
 
 				ChecklistItem existingChecklistItem = checklistItemRepository.findById(checklistItemId)
-						.orElseThrow(() -> new RuntimeException("Checklist item not found: " + checklistItemId));
+						.filter(template -> property.getId().equals(template.getProperty().getId()))
+						.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+								"Checklist item does not belong to this property"));
 
 				item.setChecklistItem(existingChecklistItem);
 			}
 		});
 
 		Cleaning savedCleaning = cleaningRepository.save(cleaning);
+		recurringChecklistService.reconcile(property.getId());
 		CleaningResponse cleaningResponse = cleaningResponseService.toCleaningResponse(savedCleaning);
 
 		return ResponseEntity.status(HttpStatus.CREATED).body(cleaningResponse);
@@ -157,6 +183,7 @@ public class CleaningController {
 			@PathVariable Long id,
 			@RequestBody Cleaning updated,
 			@AuthenticationPrincipal User manager) {
+		propertyRepository.findByCleaningIdForUpdate(id);
 		return cleaningRepository.findByIdForUpdate(id).map(existing -> {
 			if (manager == null
 					|| manager.getRole() != Role.MANAGER
@@ -173,9 +200,10 @@ public class CleaningController {
 			existing.setDateTimeEnd(updated.getDateTimeEnd());
 			existing.setNotes(updated.getNotes());
 			if (Boolean.TRUE.equals(updated.getIsComplete())) {
-				existing.markComplete();
+				recurringChecklistService.recordCompletion(existing);
 			} else {
 				existing.setIsComplete(updated.getIsComplete());
+				recurringChecklistService.reconcile(existing.getProperty().getId());
 			}
 			return ResponseEntity.ok(cleaningRepository.save(existing));
 		}).orElse(ResponseEntity.notFound().build());
@@ -184,6 +212,7 @@ public class CleaningController {
 	@DeleteMapping("/{id}")
 	@Transactional
 	public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal User manager) {
+		propertyRepository.findByCleaningIdForUpdate(id);
 		Cleaning cleaning = cleaningRepository.findByIdForUpdate(id)
 				.filter(existing -> existing.getManager().getId().equals(manager.getId()))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -197,6 +226,7 @@ public class CleaningController {
 
 		cleaningPhotoService.deleteCloudPhotosAfterCleaningRemoval(List.of(id));
 		cleaningRepository.delete(cleaning);
+		recurringChecklistService.reconcile(cleaning.getProperty().getId());
 		return ResponseEntity.noContent().build();
 	}
 

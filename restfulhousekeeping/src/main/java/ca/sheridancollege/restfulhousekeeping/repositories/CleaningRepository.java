@@ -19,6 +19,14 @@ public interface CleaningRepository extends JpaRepository<Cleaning,Long> {
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select cleaning from Cleaning cleaning where cleaning.id = :id")
 	Optional<Cleaning> findByIdForUpdate(Long id);
+
+	@Query("""
+		select distinct c from Cleaning c left join fetch c.cleaningChecklistItems
+		where c.property.id = :propertyId and (c.isComplete is null or c.isComplete = false)
+		    and c.dateTimeStart is not null and (c.dateTimeStart >= :now or c.dateTimeEnd >= :now)
+		order by c.dateTimeStart, c.id
+		""")
+	List<Cleaning> findPendingChecklistSchedule(Long propertyId, LocalDateTime now);
 	
 	List<Cleaning> findByManagerIdAndDateTimeStartGreaterThanEqual(
 		    Long managerId,

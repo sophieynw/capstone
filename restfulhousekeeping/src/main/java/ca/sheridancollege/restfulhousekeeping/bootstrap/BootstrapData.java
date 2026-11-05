@@ -3,15 +3,18 @@ package ca.sheridancollege.restfulhousekeeping.bootstrap;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
-import ca.sheridancollege.restfulhousekeeping.services.EmailService;
+import ca.sheridancollege.restfulhousekeeping.services.RecurringChecklistService;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import ca.sheridancollege.restfulhousekeeping.beans.Availability;
 import ca.sheridancollege.restfulhousekeeping.beans.AvailabilitySlot;
@@ -25,7 +28,6 @@ import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.repositories.AvailabilityRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.ChecklistItemRepository;
-import ca.sheridancollege.restfulhousekeeping.repositories.CleaningChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.OrganizationRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
@@ -44,16 +46,23 @@ public class BootstrapData implements CommandLineRunner {
 	private final CleaningRepository cleaningRepository;
 	private final AvailabilityRepository availabilityRepository;
 	private final ChecklistItemRepository checklistItemRepository;
-	private final CleaningChecklistItemRepository cleaningChecklistItemRepository;
 	private final SlotRepository slotRepository;
 	private final PasswordEncoder passwordEncoder;
-	private final EmailService emailService;
-	
-	// the following two functions can be used to generate a "random" completedDaysAgo number from 1 to 60 days
-	
-	private int randomInt(int min, int max) {
-	    return ThreadLocalRandom.current()
-	        .nextInt(min, max + 1);
+	private final RecurringChecklistService recurringChecklistService;
+
+	private void seedAvailability(User cleaner, DayOfWeek... days) {
+		Availability availability = availabilityRepository.save(Availability.builder()
+				.cleaner(cleaner)
+				.build());
+		for (DayOfWeek day : days) {
+			slotRepository.save(AvailabilitySlot.builder()
+					.availability(availability)
+					.cleaner(cleaner)
+					.dayOfWeek(day)
+					.startTime(LocalTime.of(9, 0))
+					.endTime(LocalTime.of(17, 0))
+					.build());
+		}
 	}
 	
 	private ChecklistItem generateChecklistItem(Property property, String description, Integer frequencyDays, Integer completedDaysAgo) {
@@ -61,20 +70,12 @@ public class BootstrapData implements CommandLineRunner {
 				.property(property)
 				.description(description)
 				.frequencyDays(frequencyDays)
-				.lastCompleted(LocalDate.now().minusDays(randomInt(1, 60)).atStartOfDay())
+				.lastCompleted(LocalDate.now().minusDays(completedDaysAgo).atStartOfDay())
 				.build();
 	}
 		
-//	private ChecklistItem generateChecklistItem(Property property, String description, Integer frequencyDays, Integer completedDaysAgo) {
-//		return ChecklistItem.builder()
-//				.property(property)
-//				.description(description)
-//				.frequencyDays(frequencyDays)
-//				.lastCompleted(LocalDate.now().minusDays(completedDaysAgo).atStartOfDay())
-//				.build();
-//	}
-
 	@Override
+	@Transactional
 	public void run(String... args) throws Exception {
 		if (organizationRepository.count() > 0) {
 			return;
@@ -84,6 +85,10 @@ public class BootstrapData implements CommandLineRunner {
 		Organization organization1 = Organization.builder().name("The Everything Company")
 				.description("We specialize in literally everything.").build();
 		organization1 = organizationRepository.save(organization1);
+		Organization organization2 = organizationRepository.save(Organization.builder()
+				.name("Cedar Key Hosting")
+				.description("Manages short-term rentals and coordinates guest turnovers.")
+				.build());
 		
 		
 		
@@ -96,6 +101,7 @@ public class BootstrapData implements CommandLineRunner {
 				.email("sophie@test.com")
 				.password(passwordEncoder.encode("password"))
 				.phoneNumber("6471231234")
+				.profilePicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/sophie.jpg")
 				.role(Role.MANAGER)
 				.build();
 		User cleaner1 = User.builder()
@@ -106,6 +112,7 @@ public class BootstrapData implements CommandLineRunner {
 				.email("robert@test.com")
 				.password(passwordEncoder.encode("password"))
 				.phoneNumber("9056083833")
+				.profilePicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/robert.webp?updatedAt=1793860310886")
 				.role(Role.CLEANER)
 				.build();
 		User cleaner2 = User.builder()
@@ -116,33 +123,34 @@ public class BootstrapData implements CommandLineRunner {
 				.email("katie@test.com")
 				.password(passwordEncoder.encode("password"))
 				.phoneNumber("2260001234")
+				.profilePicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/katie.jpg")
 				.role(Role.CLEANER)
 				.build();
 		User cleaner3 = User.builder()
 				//.organization(organization1)
-				.firstName("John")
-				.lastName("Smith")
-				.username("john")
-				.email("john@test.com")
+				.firstName("Alex")
+				.lastName("Tumanan")
+				.username("alex")
+				.email("alex@test.com")
 				.password(passwordEncoder.encode("password"))
 				.phoneNumber("4160001234")
 				.role(Role.CLEANER)
 				.build();
-		User cleaner4 = User.builder()
-				//.organization(organization1)
-				.firstName("Jane")
-				.lastName("Smith")
-				.username("jane")
-				.email("jane@test.com")
+		User manager2 = User.builder()
+				.organization(organization2)
+				.firstName("Sunggyu")
+				.lastName("Kang")
+				.username("sunggyu")
+				.email("sunggyu@test.com")
 				.password(passwordEncoder.encode("password"))
 				.phoneNumber("6470001234")
-				.role(Role.CLEANER)
+				.role(Role.MANAGER)
 				.build();
 		manager1 = userRepository.save(manager1);
 		cleaner1 = userRepository.save(cleaner1);
 		cleaner2 = userRepository.save(cleaner2);
 		cleaner3 = userRepository.save(cleaner3);
-		cleaner4 = userRepository.save(cleaner4);
+		userRepository.save(manager2);
 		
 		
 		
@@ -150,6 +158,7 @@ public class BootstrapData implements CommandLineRunner {
 		Property property1 = Property.builder()
 				.manager(manager1)
 			    .name("Lakeshore Studio")
+			    .propertyPicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/lakeshore.jpg")
 			    .street("2531 Lakeshore Blvd.")
 			    .unit("G9")
 			    .city("Etobicoke")
@@ -161,6 +170,7 @@ public class BootstrapData implements CommandLineRunner {
 		Property property2 = Property.builder()
 				.manager(manager1)
 			    .name("Union 1BR Condo")
+			    .propertyPicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/union.jpg")
 			    .street("101 Union St.")
 			    .unit("292")
 			    .city("Oakville")
@@ -174,6 +184,7 @@ public class BootstrapData implements CommandLineRunner {
 		Property property3 = Property.builder()
 				.manager(manager1)
 			    .name("Maple 5BR House")
+			    .propertyPicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/maple.webp")
 			    .street("47 Maple Ridge Drive")
 			    .city("Burlington")
 			    .province("Ontario")
@@ -275,136 +286,97 @@ public class BootstrapData implements CommandLineRunner {
 		
 
 		
-		// Cleanings		
-//		LocalDateTime todayAt1159Pm = LocalDate.now().atTime(23, 59);
-		LocalDateTime oneHourFromNow = LocalDateTime.now().plusHours(1);
+		// Cleanings
+		LocalDateTime now = LocalDateTime.now();
+		LocalDate today = now.toLocalDate();
+		LocalDateTime scheduledStart = today.atTime(11, 0);
+		LocalDateTime scheduledEnd = today.atTime(14, 0);
+		LocalDateTime completedAt = scheduledEnd.isBefore(now) ? scheduledEnd : now;
 
-		// property 1 cleaning
+		// Completed property 1 cleaning and its recorded checklist history
 		Cleaning cleaning1 = Cleaning.builder()
-		        .dateTimeStart(LocalDateTime.now().plusHours(1))
-		        .dateTimeEnd(oneHourFromNow.plusHours(2))
-		        .notes("Upcoming cleaning 1.")
+		        .property(property1)
+		        .cleaner(cleaner1)
+		        .manager(manager1)
+		        .dateTimeStart(scheduledStart)
+		        .dateTimeEnd(scheduledEnd)
+		        .dateTimeStarted(scheduledStart.isBefore(completedAt) ? scheduledStart : completedAt)
+		        .dateTimeCompleted(completedAt)
+		        .notes("Completed cleaning at Lakeshore Studio.")
 		        .isComplete(true)
 		        .build();
-		cleaning1.setProperty(property1);
-		cleaning1.setCleaner(cleaner1);
-		cleaning1.setManager(manager1);
-		cleaning1 = cleaningRepository.save(cleaning1);
+		for (ChecklistItem template : List.of(kitchen, bathroom, bedding, supplies, ceilingCorners)) {
+			template.setLastCompleted(completedAt);
+			cleaning1.getCleaningChecklistItems().add(CleaningChecklistItem.builder()
+					.cleaning(cleaning1)
+					.checklistItem(template)
+					.isComplete(true)
+					.build());
+		}
+		cleaningRepository.save(cleaning1);
 		
 		// property 2 cleaning
 		Cleaning cleaning2 = Cleaning.builder()
-		        .dateTimeStart(LocalDateTime.now().plusHours(1))
-		        .dateTimeEnd(oneHourFromNow.plusHours(3))
+		        .dateTimeStart(today.atTime(12, 0))
+		        .dateTimeEnd(today.atTime(14, 0))
+		        .isComplete(false)
+		        .scheduleRecurringChecklist(true)
 		        .build();
 		cleaning2.setProperty(property2);
 		cleaning2.setCleaner(cleaner2);
 		cleaning2.setManager(manager1);
-		cleaning2 = cleaningRepository.save(cleaning2);
+		cleaningRepository.save(cleaning2);
 		
 		// property 3 cleaning
 		Cleaning cleaning3 = Cleaning.builder()
-		        .dateTimeStart(LocalDateTime.now().plusHours(2))
-		        .dateTimeEnd(oneHourFromNow.plusHours(3))
+		        .dateTimeStart(today.atTime(12, 0))
+		        .dateTimeEnd(today.atTime(15, 0))
+		        .isComplete(false)
+		        .scheduleRecurringChecklist(true)
 		        .build();
 		cleaning3.setProperty(property3);
 		cleaning3.setCleaner(cleaner1);
 		cleaning3.setManager(manager1);
-		cleaning3 = cleaningRepository.save(cleaning3);
-		
-		// property 1 cleaning
-		Cleaning cleaning4 = Cleaning.builder()
-				.dateTimeStart(LocalDateTime.now().plusHours(2))
-				.dateTimeEnd(LocalDateTime.now().plusHours(4))
-				.build();
-		cleaning4.setProperty(property1);
-		cleaning4.setCleaner(cleaner1);
-		cleaning4.setManager(manager1);
-		cleaning4 = cleaningRepository.save(cleaning4);
-
-
-
-		// CleaningChecklistItems
-		cleaningChecklistItemRepository
-		.saveAll(List.of(CleaningChecklistItem.builder().cleaning(cleaning1).checklistItem(kitchen).isComplete(true).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning1).checklistItem(bathroom).isComplete(true).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning1).checklistItem(bedding).isComplete(true).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning1).checklistItem(supplies).isComplete(true).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning1).checklistItem(ceilingCorners).isComplete(true).build()));
-
-		cleaningChecklistItemRepository
-				.saveAll(List.of(CleaningChecklistItem.builder().cleaning(cleaning2).checklistItem(kitchen2).build(),
-						CleaningChecklistItem.builder().cleaning(cleaning2).checklistItem(bathroom2).build(),
-						CleaningChecklistItem.builder().cleaning(cleaning2).checklistItem(bedding2).build(),
-						CleaningChecklistItem.builder().cleaning(cleaning2).checklistItem(supplies2).build(),
-						CleaningChecklistItem.builder().cleaning(cleaning2).checklistItem(hottub).build()));
-		
-		cleaningChecklistItemRepository
-		.saveAll(List.of(CleaningChecklistItem.builder().cleaning(cleaning3).checklistItem(floors3).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning3).checklistItem(bathroom3).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning3).checklistItem(bedding3).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning3).checklistItem(windows3).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning3).checklistItem(sinks3).build()));
-		
-		cleaningChecklistItemRepository
-		.saveAll(List.of(CleaningChecklistItem.builder().cleaning(cleaning4).checklistItem(kitchen).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning4).checklistItem(bathroom).build(),
-				CleaningChecklistItem.builder().cleaning(cleaning4).checklistItem(bedding).build()));
-
-
-		
-		
+		cleaningRepository.save(cleaning3);
 
 		// Availabilities
-				
-		AvailabilitySlot slot1 = AvailabilitySlot.builder().dayOfWeek(DayOfWeek.TUESDAY).startTime(LocalTime.of(9, 0))
-		.endTime(LocalTime.of(17, 0)).build();
-		AvailabilitySlot slot2 = AvailabilitySlot.builder().dayOfWeek(DayOfWeek.WEDNESDAY).startTime(LocalTime.of(9, 0))
-		.endTime(LocalTime.of(17, 0)).build();
-		
-		
-		Availability availability1 = new Availability();
-		availability1.setCleaner(cleaner1);
-		availability1 = availabilityRepository.save(availability1);
-		slot1.setAvailability(availability1);
-		slot2.setAvailability(availability1);
+		seedAvailability(cleaner1, DayOfWeek.values());
+		seedAvailability(cleaner2, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
 
-		slot1.setCleaner(cleaner1);
-		slot2.setCleaner(cleaner1);
-
-		slot1 = slotRepository.save(slot1);
-		slot2 = slotRepository.save(slot2);
-
-		// Generate 10 cleanings over the next two weeks
-		LocalDate today = LocalDate.now();
+		// Generate five cleanings per property over the next three months.
 		ThreadLocalRandom random = ThreadLocalRandom.current();
+		long lastDayOffset = ChronoUnit.DAYS.between(today, today.plusMonths(3));
 
-		List<Property> properties = List.of(property1, property2);
+		List<Property> properties = List.of(property1, property2, property3);
 		List<User> cleaners = List.of(cleaner1, cleaner2);
+		Set<Integer> unassignedCleaningNumbers = Set.of(1, 4, 7, 10);
 
-		for (int i = 0; i < 10; i++) {
-			// Random date from tomorrow through 14 days from today
-			LocalDate cleaningDay = today.plusDays(random.nextInt(1, 15));
+		for (int number = 1; number <= 5 * properties.size(); number++) {
+			LocalDate cleaningDay = today.plusDays(random.nextLong(1, lastDayOffset + 1));
 
-			// Random start time between 8:00 AM and 4:30 PM
-			int hour = random.nextInt(8, 17);
-			int minute = random.nextBoolean() ? 0 : 30;
-
-			LocalDateTime start = cleaningDay.atTime(hour, minute);
+			// Seven half-hour starts from 11:00 AM through 2:00 PM.
+			LocalDateTime start = cleaningDay.atTime(11, 0).plusMinutes(30L * random.nextInt(7));
 			LocalDateTime end = start.plusHours(random.nextInt(2, 5));
 
 			Cleaning cleaning = Cleaning.builder().dateTimeStart(start).dateTimeEnd(end)
-					.notes("Automatically generated cleaning " + (i + 1)).build();
+					.notes("Automatically generated cleaning " + number)
+					.isComplete(false)
+					.scheduleRecurringChecklist(true)
+					.build();
 
-			// Alternate between the two existing properties
-			cleaning.setProperty(properties.get(i % properties.size()));
+			cleaning.setProperty(properties.get((number - 1) % properties.size()));
 			cleaning.setManager(manager1);
 
-			// Assign 20 cleanings and leave every third cleaning unassigned
-			if (i % 3 != 0) {
+			if (!unassignedCleaningNumbers.contains(number)) {
 				cleaning.setCleaner(cleaners.get(random.nextInt(cleaners.size())));
 			}
 
 			cleaningRepository.save(cleaning);
+		}
+
+		// These properties were inserted in this transaction and are locked until commit.
+		for (Property property : properties) {
+			recurringChecklistService.reconcile(property.getId());
 		}
 
 		// Generate 5 cleanings for today

@@ -7,6 +7,7 @@ import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningResponse;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
+import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.SlotRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.UserRepository;
 import lombok.AllArgsConstructor;
@@ -29,6 +30,8 @@ public class CleaningResponseService {
     private final SlotRepository slotRepository;
     private final CleaningChecklistItemResponseService cciResponseService;
     private final PropertyResponseService propertyResponseService;
+    private final PropertyRepository propertyRepository;
+    private final RecurringChecklistService recurringChecklistService;
 
     public List<CleaningResponse> getMyUpcomingCleanings(Long userId) {
 
@@ -71,6 +74,7 @@ public class CleaningResponseService {
     
     @Transactional
     public CleaningResponse completeCleaning(Long cleaningId) {
+        propertyRepository.findByCleaningIdForUpdate(cleaningId);
         Cleaning cleaning = cleaningRepository
             .findByIdForUpdate(cleaningId)
             .orElseThrow(() -> new ResponseStatusException(
@@ -78,7 +82,7 @@ public class CleaningResponseService {
                 "Cleaning not found"
             ));
 
-        cleaning.markComplete();
+        recurringChecklistService.recordCompletion(cleaning);
 
         return toCleaningResponse(cleaning);
     }
@@ -189,6 +193,7 @@ public class CleaningResponseService {
             );
         }
 
+        propertyRepository.findByCleaningIdForUpdate(cleaningId);
         Cleaning cleaning = cleaningRepository.findByIdForUpdate(cleaningId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -218,6 +223,7 @@ public class CleaningResponseService {
 
         cleaning.setDateTimeStart(dateTimeStart);
         cleaning.setDateTimeEnd(dateTimeEnd);
+        recurringChecklistService.reconcile(cleaning.getProperty().getId());
 
         return toCleaningResponse(cleaningRepository.save(cleaning));
     }

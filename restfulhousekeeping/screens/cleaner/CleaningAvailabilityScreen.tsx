@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, View, Text } from 'react-native';
+import { Alert, Pressable, Platform, ScrollView, View, Text } from 'react-native';
 import { Card } from '@/components/ui/card';
 import { styles } from '@/styles/styles';
 import { Heading } from '@/components/ui/heading';
@@ -83,6 +83,37 @@ function hasOverlappingAvailability(
   });
 }
 
+function TimeField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Date;
+  onChange: (date: Date) => void;
+}) {
+  return (
+    <>
+      <Text className='m-2'>{label}</Text>
+      <DateTimePicker
+        value={value}
+        onChange={(date) => {
+          if (date) onChange(date);
+        }}
+        mode='time'
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        format='hh:mm A'
+        is24Hour={false}
+      >
+        <DateTimePickerTrigger className='m-2 rounded-full'>
+          <DateTimePickerInput />
+          <DateTimePickerIcon as={Clock} className='mr-3' />
+        </DateTimePickerTrigger>
+      </DateTimePicker>
+    </>
+  );
+}
+
 export default function CleaningAvailabilityScreen() {
   const { user } = useContext(AuthContext);
   const { data: availabilitySlots } = useAvailabilities(user?.id);
@@ -128,36 +159,6 @@ export default function CleaningAvailabilityScreen() {
     ]);
   }
 
-  function TimeField({
-    label,
-    value,
-    onChange,
-  }: {
-    label: string;
-    value: Date;
-    onChange: (date: Date) => void;
-  }) {
-    return (
-      <>
-        <Text className='m-2'>{label}</Text>
-        <DateTimePicker
-          value={value}
-          onChange={(date) => {
-            if (date) onChange(date);
-          }}
-          mode='time'
-          format='hh:mm A'
-          is24Hour={false}
-        >
-          <DateTimePickerTrigger className='m-2 rounded-full'>
-            <DateTimePickerInput />
-            <DateTimePickerIcon as={Clock} className='mr-3' />
-          </DateTimePickerTrigger>
-        </DateTimePicker>
-      </>
-    );
-  }
-
   return (
     <ScrollView
       style={styles.screen}
@@ -186,11 +187,7 @@ export default function CleaningAvailabilityScreen() {
                 accessibilityRole='button'
                 accessibilityLabel='Edit availability slot'
               >
-                <Icon
-                  as={EditIcon}
-                  size='xl'
-                  style={styles.buttonText}
-                />
+                <Icon as={EditIcon} size='xl' style={styles.buttonText} />
               </Pressable>
 
               <Pressable
@@ -199,11 +196,7 @@ export default function CleaningAvailabilityScreen() {
                 accessibilityRole='button'
                 accessibilityLabel='Delete availability slot'
               >
-                <Icon
-                  as={TrashIcon}
-                  size='xl'
-                  style={styles.buttonTextWarn}
-                />
+                <Icon as={TrashIcon} size='xl' style={styles.buttonTextWarn} />
               </Pressable>
             </View>
           </Card>
@@ -219,7 +212,12 @@ export default function CleaningAvailabilityScreen() {
         <ButtonText style={styles.buttonText}>Add New Availability</ButtonText>
       </Button>
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} size='md'>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        closeOnOverlayClick={false}
+        size='md'
+      >
         <ModalBackdrop />
         <ModalContent className='rounded-4xl'>
           <ModalHeader>

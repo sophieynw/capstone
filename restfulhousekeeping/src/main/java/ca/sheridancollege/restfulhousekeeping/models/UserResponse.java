@@ -3,10 +3,13 @@ package ca.sheridancollege.restfulhousekeeping.models;
 import ca.sheridancollege.restfulhousekeeping.beans.Organization;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
 @Builder
@@ -23,6 +26,8 @@ public class UserResponse {
     private String phoneNumber;
     private Role role;
     private String profilePicturePath;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<AvailabilitySlotResponse> availabilitySlots;
     
     public static UserResponse fromUser(User user) {
     	return new UserResponse(
@@ -34,7 +39,8 @@ public class UserResponse {
             user.getEmail(),
             user.getPhoneNumber(),
             user.getRole(),
-            user.getProfilePicturePath() 
+            user.getProfilePicturePath(),
+            null
         );
 
     }

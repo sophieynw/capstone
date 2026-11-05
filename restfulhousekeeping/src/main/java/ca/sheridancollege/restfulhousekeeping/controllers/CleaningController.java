@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @AllArgsConstructor
@@ -67,7 +68,21 @@ public class CleaningController {
 
 	// CREATE new cleaning record
 	@PostMapping
-	public ResponseEntity<CleaningResponse> create(@RequestBody Cleaning cleaning) {
+	@Transactional
+	public ResponseEntity<CleaningResponse> create(
+			@RequestBody Cleaning cleaning, @AuthenticationPrincipal User manager) {
+
+		if (cleaning.getCleaner() != null) {
+			if (cleaning.getCleaner().getId() == null) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cleaner ID is required");
+			}
+			if (manager == null || cleaning.getManager() == null
+					|| !manager.getId().equals(cleaning.getManager().getId())) {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only assign cleaners to your own cleanings");
+			}
+			cleaning.setCleaner(cleaningResponseService.resolveAvailableCleaner(
+					cleaning.getCleaner().getId(), manager, cleaning.getDateTimeStart(), cleaning.getDateTimeEnd()));
+		}
 
 		cleaning.setId(null);
 		cleaning.setIsComplete(false);
@@ -101,6 +116,14 @@ public class CleaningController {
 	public ResponseEntity<CleaningResponse> completeCleaning(@PathVariable Long cleaningId) {
 		CleaningResponse response = cleaningResponseService.completeCleaning(cleaningId);
 		return ResponseEntity.ok(response);
+	}
+
+	@ExceptionHandler(ResponseStatusException.class)
+	public ResponseEntity<Map<String, String>> handleResponseStatusException(ResponseStatusException exception) {
+		return ResponseEntity.status(exception.getStatusCode())
+				.body(Map.of("message", exception.getReason() == null
+						? "The cleaning request could not be completed."
+						: exception.getReason()));
 	}
 
 	@PatchMapping("/{cleaningId}/cleaner")

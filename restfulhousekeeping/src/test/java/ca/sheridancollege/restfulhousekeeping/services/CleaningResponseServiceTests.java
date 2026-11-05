@@ -4,12 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,8 +26,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import ca.sheridancollege.restfulhousekeeping.beans.AvailabilitySlot;
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
 import ca.sheridancollege.restfulhousekeeping.beans.CleaningChecklistItem;
+import ca.sheridancollege.restfulhousekeeping.beans.DayOfWeek;
 import ca.sheridancollege.restfulhousekeeping.beans.Organization;
 import ca.sheridancollege.restfulhousekeeping.beans.Property;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
@@ -34,6 +39,7 @@ import ca.sheridancollege.restfulhousekeeping.repositories.CleaningChecklistItem
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.OrganizationRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
+import ca.sheridancollege.restfulhousekeeping.repositories.SlotRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.UserRepository;
 
 @SpringBootTest
@@ -47,6 +53,7 @@ class CleaningResponseServiceTests {
     @Autowired CleaningChecklistItemRepository checklistItemRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired PropertyRepository propertyRepository;
+    @Autowired SlotRepository slotRepository;
     @Autowired UserRepository userRepository;
     @Autowired EntityManager entityManager;
 
@@ -131,12 +138,84 @@ class CleaningResponseServiceTests {
 
     @Test
     void assignsCleanerFromManagersTeam() {
+        cleaning.setDateTimeStart(LocalDateTime.of(2026, 11, 2, 10, 0));
+        cleaning.setDateTimeEnd(LocalDateTime.of(2026, 11, 2, 12, 0));
+        saveMondaySlot(10, 11);
+        saveMondaySlot(11, 12);
+
         CleaningResponse response = service.updateCleaner(
                 cleaning.getId(), teamCleaner.getId(), manager);
 
         assertThat(response.getCleanerId()).isEqualTo(teamCleaner.getId());
         assertThat(cleaningRepository.findById(cleaning.getId()).orElseThrow()
                 .getCleaner().getId()).isEqualTo(teamCleaner.getId());
+    }
+
+    @Test
+    void rejectsAssignmentWhenAvailabilityChangesAfterManagerLoadsRoster() throws Exception {
+        cleaning.setDateTimeStart(LocalDateTime.of(2026, 11, 2, 10, 0));
+        cleaning.setDateTimeEnd(LocalDateTime.of(2026, 11, 2, 12, 0));
+        AvailabilitySlot slot = saveMondaySlot(10, 12);
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(manager, null, manager.getAuthorities());
+
+        mvc.perform(get("/cleaners/{organizationId}/cleaners", managerOrganization.getId())
+                        .with(authentication(authentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].role").value("CLEANER"))
+                .andExpect(jsonPath("$[0].availabilitySlots[0].dayOfWeek").value("MONDAY"))
+                .andExpect(jsonPath("$[0].availabilitySlots[0].startTime").value("10:00:00"));
+
+        slot.setEndTime(LocalTime.of(11, 0));
+        slotRepository.saveAndFlush(slot);
+
+        mvc.perform(patch("/cleanings/{cleaningId}/cleaner", cleaning.getId())
+                        .with(authentication(authentication))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"cleanerId\":" + teamCleaner.getId() + "}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("The selected cleaner is unavailable for the full cleaning time."));
+
+        assertThat(cleaning.getCleaner()).isNull();
+    }
+
+    @Test
+    void checksAvailabilityWhenCreatingAnAssignedCleaning() throws Exception {
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(manager, null, manager.getAuthorities());
+        String payload = """
+                {
+                  "manager": {"id": %d, "role": "MANAGER"},
+                  "cleaner": {"id": %d, "role": "CLEANER"},
+                  "property": {"id": %d},
+                  "dateTimeStart": "2026-11-02T10:00:00",
+                  "dateTimeEnd": "2026-11-02T12:00:00",
+                  "cleaningChecklistItems": []
+                }
+                """.formatted(manager.getId(), teamCleaner.getId(), cleaning.getProperty().getId());
+
+        saveMondaySlot(10, 12);
+        mvc.perform(post("/cleanings")
+                        .with(authentication(authentication))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.cleanerId").value(teamCleaner.getId()));
+
+        mvc.perform(post("/cleanings")
+                        .with(authentication(authentication))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload.replace("12:00:00", "13:00:00")))
+                .andExpect(status().isConflict());
+    }
+
+    private AvailabilitySlot saveMondaySlot(int startHour, int endHour) {
+        return slotRepository.save(AvailabilitySlot.builder()
+                .cleaner(teamCleaner)
+                .dayOfWeek(DayOfWeek.MONDAY)
+                .startTime(LocalTime.of(startHour, 0))
+                .endTime(LocalTime.of(endHour, 0))
+                .build());
     }
 
     @Test

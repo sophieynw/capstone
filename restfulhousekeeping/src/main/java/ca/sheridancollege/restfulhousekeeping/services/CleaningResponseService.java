@@ -1,10 +1,13 @@
 package ca.sheridancollege.restfulhousekeeping.services;
 
+import ca.sheridancollege.restfulhousekeeping.beans.AvailabilitySlot;
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
+import ca.sheridancollege.restfulhousekeeping.beans.DayOfWeek;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningResponse;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
+import ca.sheridancollege.restfulhousekeeping.repositories.SlotRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +26,7 @@ public class CleaningResponseService {
 
     private final CleaningRepository cleaningRepository;
     private final UserRepository userRepository;
+    private final SlotRepository slotRepository;
     private final CleaningChecklistItemResponseService cciResponseService;
     private final PropertyResponseService propertyResponseService;
 
@@ -113,32 +118,62 @@ public class CleaningResponseService {
         User cleaner = null;
 
         if (cleanerId != null) {
-            cleaner = userRepository.findById(cleanerId)
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Cleaner not found"
-                    ));
-
-            if (cleaner.getRole() != Role.CLEANER) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "The selected user is not a cleaner"
-                );
-            }
-
-            if (manager.getOrganization() == null
-                    || cleaner.getOrganization() == null
-                    || !manager.getOrganization().getId()
-                            .equals(cleaner.getOrganization().getId())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "The selected cleaner is not on the manager's team"
-                );
-            }
+            cleaner = resolveAvailableCleaner(
+                    cleanerId, manager, cleaning.getDateTimeStart(), cleaning.getDateTimeEnd());
         }
 
         cleaning.setCleaner(cleaner);
         return toCleaningResponse(cleaningRepository.save(cleaning));
+    }
+
+    @Transactional
+    public User resolveAvailableCleaner(Long cleanerId, User manager, LocalDateTime start, LocalDateTime end) {
+        if (manager == null || manager.getRole() != Role.MANAGER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only managers can assign cleaners");
+        }
+
+        User cleaner = userRepository.findById(cleanerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cleaner not found"));
+
+        if (cleaner.getRole() != Role.CLEANER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The selected user is not a cleaner");
+        }
+        if (manager.getOrganization() == null || cleaner.getOrganization() == null
+                || !manager.getOrganization().getId().equals(cleaner.getOrganization().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "The selected cleaner is not on the manager's team");
+        }
+        if (!coversCleaning(cleanerId, start, end)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "The selected cleaner is unavailable for the full cleaning time.");
+        }
+
+        return cleaner;
+    }
+
+    private boolean coversCleaning(Long cleanerId, LocalDateTime start, LocalDateTime end) {
+        if (start == null || end == null || !end.isAfter(start)
+                || !start.toLocalDate().equals(end.toLocalDate())) {
+            return false;
+        }
+
+        DayOfWeek day = DayOfWeek.valueOf(start.getDayOfWeek().name());
+        LocalTime coveredUntil = start.toLocalTime();
+        for (AvailabilitySlot slot : slotRepository.findByCleanerIdAndDayOfWeekOrderByStartTime(cleanerId, day)) {
+            if (slot.getStartTime() == null || slot.getEndTime() == null) {
+                continue;
+            }
+            if (slot.getStartTime().isAfter(coveredUntil)) {
+                break;
+            }
+            if (slot.getEndTime().isAfter(coveredUntil)) {
+                coveredUntil = slot.getEndTime();
+                if (!coveredUntil.isBefore(end.toLocalTime())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Transactional

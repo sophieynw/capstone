@@ -261,7 +261,7 @@ function CleanerInfo({
           accessibilityLabel='Open manager chat'
         >
           <View style={styles.summaryCardVisual}>
-            <Icon as={MessageCircle} size='2xl' />
+            <Icon as={MessageCircle} size='xl' />
           </View>
           <Text>Chat</Text>
         </Pressable>

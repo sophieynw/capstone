@@ -43,7 +43,7 @@ export default function LoginPage({ navigation }: any) {
       ]}
     >
       <Heading size='2xl'>RESTful Housekeeping</Heading>
-      <Text size='md'>Cleaning Accountability Made Simple</Text>
+      <Text>Cleaning Accountability Made Simple</Text>
 
       <Image
         source={require('../assets/logonewest.png')}

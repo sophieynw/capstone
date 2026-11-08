@@ -20,6 +20,10 @@ export const styles = StyleSheet.create({
     gap: 10,
     padding: 2,
   },
+  centerContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 28,
     fontWeight: '700',

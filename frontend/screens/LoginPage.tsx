@@ -1,7 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, TextInput, Pressable, Alert } from 'react-native';
 import '../global.css';
-import { globalStyles } from '@/styles/globalStyles';
 import { styles } from '@/styles/styles';
 import { Image } from 'react-native';
 import { useState } from 'react';
@@ -10,6 +9,7 @@ import { AuthContext } from '@/auth/AuthContext';
 import { authenticate } from '@/api/auth';
 import { showComingSoonAlert } from '@/components/ComingSoonAlert';
 import { getUsernameValidationError } from '@/utils/username';
+import { Heading } from '@/components/ui/heading';
 
 export default function LoginPage({ navigation }: any) {
   const [username, setUsername] = useState('');
@@ -34,15 +34,23 @@ export default function LoginPage({ navigation }: any) {
   };
 
   return (
-    <View style={globalStyles.screen}>
-      <Text style={globalStyles.title}>RESTful Housekeeping</Text>
-      <Text style={globalStyles.subtitle}>
-        Cleaning Accountability Made Simple
-      </Text>
+    <View
+      style={[
+        styles.screen,
+        styles.vStack,
+        styles.centerContainer,
+        styles.screenContent,
+      ]}
+    >
+      <Heading size='2xl'>RESTful Housekeeping</Heading>
+      <Text size='md'>Cleaning Accountability Made Simple</Text>
 
       <Image
         source={require('../assets/logonewest.png')}
-        style={globalStyles.logoImage}
+        style={{
+          width: 180,
+          height: 180,
+        }}
       />
 
       <View style={styles.formCard}>

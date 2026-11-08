@@ -13,6 +13,10 @@ Managing cleaning operations across multiple short-term rental properties can in
 
 Managers can organize properties, schedule cleanings, assign cleaners, and manage their team. Cleaners can view assignments, set weekly availability, follow checklists, upload photos, report issues, and mark cleanings as complete.
 
+## Demo
+
+[![Watch the Restful Housekeeping demo](https://img.youtube.com/vi/d7K5cwK-oac/maxresdefault.jpg)](https://youtu.be/d7K5cwK-oac)
+
 ## Core features
 
 ### Property managers

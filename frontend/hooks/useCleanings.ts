@@ -1,0 +1,481 @@
+// hooks/useCleanings.ts
+import { useContext } from 'react';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AuthContext } from '@/auth/AuthContext';
+import {
+  addCleaningChecklistItem,
+  completeCleaning,
+  createCleaning,
+  createCleaningNote,
+  deleteCleaning,
+  deleteCleaningChecklistItem,
+  getCleaningById,
+  getCleaningNotes,
+  getCompletedCleanings,
+  getNextCleaningByProperty,
+  getUpcomingCleanings,
+  updateCleaningChecklistItem,
+  updateCleaningCleaner,
+  updateCleaningSchedule,
+} from '@/api/cleaningsApi';
+import { Cleaning, CleaningNote } from '@/types/entityTypes';
+import { Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { getApiErrorMessage } from '@/api/apiClient';
+
+function invalidateRecurringChecklists(
+  queryClient: QueryClient,
+  propertyId: number,
+  changedCleaningId: number,
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['due-checklist-items', propertyId] }),
+    queryClient.invalidateQueries({
+      queryKey: ['cleaning-id'],
+      predicate: (query) =>
+        query.queryKey[1] !== changedCleaningId &&
+        (query.state.data as Cleaning | undefined)?.property?.id === propertyId,
+    }),
+  ]);
+}
+
+// fetches all upcoming cleanings for a user
+export function useUpcomingCleanings() {
+  const { user } = useContext(AuthContext);
+
+  return useQuery({
+    queryKey: ['upcoming-cleanings', user?.id],
+    queryFn: () => getUpcomingCleanings(user!.id),
+    enabled: !!user?.id,
+
+    select: (cleanings) =>
+      [...cleanings].sort(
+        (a, b) =>
+          new Date(a.dateTimeStart).getTime() -
+          new Date(b.dateTimeStart).getTime(),
+      ),
+  });
+}
+
+export function useCompletedCleanings() {
+  const { user } = useContext(AuthContext);
+
+  return useQuery({
+    queryKey: ['completed-cleanings', user?.id],
+    queryFn: () => getCompletedCleanings(user!.id),
+    enabled: !!user?.id,
+  });
+}
+
+export function useNextCleaningByProperty(propertyId: number) {
+  const { user } = useContext(AuthContext);
+
+  return useQuery({
+    queryKey: ['next-property-cleaning', propertyId],
+    queryFn: () => getNextCleaningByProperty(propertyId),
+    enabled: !!propertyId,
+  });
+}
+
+export function useCleaningById(id: number) {
+  const { user } = useContext(AuthContext);
+
+  return useQuery({
+    queryKey: ['cleaning-id', id],
+    queryFn: () => getCleaningById(id),
+    enabled: !!user?.id,
+  });
+}
+
+export function useCleaningNotes(cleaningId: number) {
+  const { user } = useContext(AuthContext);
+
+  return useQuery({
+    queryKey: ['cleaning-notes', cleaningId, user?.id],
+    queryFn: () => getCleaningNotes(cleaningId),
+    enabled: !!user?.id,
+  });
+}
+
+export function useCreateCleaningNote(cleaningId: number) {
+  const { user } = useContext(AuthContext);
+  const queryClient = useQueryClient();
+  const queryKey = ['cleaning-notes', cleaningId, user?.id];
+
+  return useMutation({
+    mutationFn: (content: string) => createCleaningNote(cleaningId, content),
+    onSuccess: async (note) => {
+      await queryClient.cancelQueries({ queryKey, exact: true });
+      queryClient.setQueryData<CleaningNote[]>(queryKey, (notes) => [
+        note,
+        ...(notes ?? []).filter((existing) => existing.id !== note.id),
+      ]);
+      void queryClient.invalidateQueries({ queryKey, exact: true });
+    },
+  });
+}
+
+// creates a new Cleaning record
+export function useCreateCleaning() {
+  const queryClient = useQueryClient();
+  const navigation = useNavigation();
+
+  return useMutation({
+    mutationFn: createCleaning,
+
+    onSuccess: async (createdCleaning) => {
+      queryClient.setQueryData(
+        ['cleaning-id', createdCleaning.id],
+        createdCleaning,
+      );
+
+      await Promise.all([
+        invalidateRecurringChecklists(queryClient, createdCleaning.property.id, createdCleaning.id),
+        queryClient.invalidateQueries({
+          queryKey: ['upcoming-cleanings', createdCleaning.managerId],
+          exact: true,
+          refetchType: 'all',
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['next-property-cleaning', createdCleaning.property.id],
+          exact: true,
+          refetchType: 'all',
+        }),
+      ]);
+
+      Alert.alert('Success', 'The cleaning was created.', [
+        {
+          text: 'OK',
+          onPress: () => navigation.goBack(),
+        },
+      ]);
+    },
+
+    onError: (error) => {
+      console.error('Create cleaning error:', error);
+
+      Alert.alert(
+        'Unable to save',
+        getApiErrorMessage(error, 'The cleaning could not be created.'),
+      );
+    },
+  });
+}
+
+// marks cleaning as complete
+export function useCompleteCleaning() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: completeCleaning,
+    onSuccess: (updatedCleaning) => {
+      queryClient.setQueryData(
+        ['cleaning-id', updatedCleaning.id],
+        updatedCleaning,
+      );
+      queryClient.invalidateQueries({
+        queryKey: ['upcoming-cleanings'],
+        refetchType: 'all',
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['completed-cleanings'],
+        refetchType: 'all',
+      });
+      void invalidateRecurringChecklists(queryClient, updatedCleaning.property.id, updatedCleaning.id);
+      void queryClient.invalidateQueries({ queryKey: ['checklist-items', updatedCleaning.property.id] });
+      void queryClient.invalidateQueries({ queryKey: ['next-property-cleaning', updatedCleaning.property.id] });
+    },
+  });
+}
+
+export function useUpdateCleaningCleaner() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      cleaningId,
+      cleanerId,
+    }: {
+      cleaningId: number;
+      cleanerId: number | null;
+    }) => updateCleaningCleaner(cleaningId, cleanerId),
+
+    onSuccess: async (updatedCleaning) => {
+      queryClient.setQueryData(
+        ['cleaning-id', updatedCleaning.id],
+        updatedCleaning,
+      );
+
+      queryClient.setQueriesData<Cleaning[]>(
+        { queryKey: ['upcoming-cleanings'] },
+        (cleanings) =>
+          cleanings?.map((cleaning) =>
+            cleaning.id === updatedCleaning.id ? updatedCleaning : cleaning,
+          ),
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['upcoming-cleanings'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['next-property-cleaning', updatedCleaning.property.id],
+          refetchType: 'all',
+        }),
+      ]);
+    },
+  });
+}
+
+export function useUpdateCleaningSchedule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      cleaningId,
+      dateTimeStart,
+      dateTimeEnd,
+    }: {
+      cleaningId: number;
+      dateTimeStart: string;
+      dateTimeEnd: string;
+    }) => updateCleaningSchedule(cleaningId, dateTimeStart, dateTimeEnd),
+
+    onSuccess: async (updatedCleaning) => {
+      queryClient.setQueryData(
+        ['cleaning-id', updatedCleaning.id],
+        updatedCleaning,
+      );
+
+      await Promise.all([
+        invalidateRecurringChecklists(queryClient, updatedCleaning.property.id, updatedCleaning.id),
+        queryClient.invalidateQueries({
+          queryKey: ['upcoming-cleanings'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['next-property-cleaning', updatedCleaning.property.id],
+          refetchType: 'all',
+        }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteCleaning() {
+  const queryClient = useQueryClient();
+  const navigation = useNavigation();
+
+  return useMutation({
+    mutationFn: ({ cleaningId }: { cleaningId: number; propertyId: number }) =>
+      deleteCleaning(cleaningId),
+
+    onSuccess: (_, { cleaningId, propertyId }) => {
+      void invalidateRecurringChecklists(queryClient, propertyId, cleaningId);
+      Alert.alert('Success', 'The cleaning was deleted.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            navigation.goBack();
+            setTimeout(() => {
+              queryClient.removeQueries({
+                queryKey: ['cleaning-id', cleaningId],
+                exact: true,
+              });
+            }, 0);
+          },
+        },
+      ]);
+
+      queryClient.invalidateQueries({
+        queryKey: ['upcoming-cleanings'],
+        refetchType: 'all',
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['next-property-cleaning', propertyId],
+        exact: true,
+        refetchType: 'all',
+      });
+    },
+
+    onError: (error) => {
+      console.error('Delete cleaning error:', error);
+
+      Alert.alert('Unable to delete', 'The cleaning could not be deleted.');
+    },
+  });
+}
+
+export function useAddCleaningChecklistItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      cleaningId,
+      description,
+    }: {
+      cleaningId: number;
+      propertyId: number;
+      description: string;
+    }) => addCleaningChecklistItem(cleaningId, description),
+
+    onSuccess: (createdItem, { cleaningId, propertyId }) => {
+      const addItem = (cleaning: Cleaning | undefined) =>
+        cleaning?.id === cleaningId
+          ? {
+              ...cleaning,
+              cleaningChecklistItems: [
+                ...cleaning.cleaningChecklistItems,
+                createdItem,
+              ],
+            }
+          : cleaning;
+
+      queryClient.setQueryData<Cleaning>(['cleaning-id', cleaningId], addItem);
+
+      queryClient.setQueriesData<Cleaning[]>(
+        { queryKey: ['upcoming-cleanings'] },
+        (cleanings) => cleanings?.map((cleaning) => addItem(cleaning)!),
+      );
+
+      queryClient.setQueryData<Cleaning>(
+        ['next-property-cleaning', propertyId],
+        addItem,
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: ['upcoming-cleanings'],
+        refetchType: 'all',
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['next-property-cleaning', propertyId],
+        exact: true,
+        refetchType: 'all',
+      });
+    },
+  });
+}
+
+export function useDeleteCleaningChecklistItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      cleaningId,
+      itemId,
+    }: {
+      cleaningId: number;
+      propertyId: number;
+      itemId: number;
+    }) => deleteCleaningChecklistItem(cleaningId, itemId),
+
+    onSuccess: (_, { cleaningId, propertyId, itemId }) => {
+      void invalidateRecurringChecklists(queryClient, propertyId, cleaningId);
+      const removeItem = (cleaning: Cleaning | undefined) =>
+        cleaning?.id === cleaningId
+          ? {
+              ...cleaning,
+              cleaningChecklistItems: cleaning.cleaningChecklistItems.filter(
+                (item) => item.id !== itemId,
+              ),
+            }
+          : cleaning;
+
+      queryClient.setQueryData<Cleaning>(
+        ['cleaning-id', cleaningId],
+        removeItem,
+      );
+
+      queryClient.setQueriesData<Cleaning[]>(
+        { queryKey: ['upcoming-cleanings'] },
+        (cleanings) => cleanings?.map((cleaning) => removeItem(cleaning)!),
+      );
+
+      queryClient.setQueryData<Cleaning>(
+        ['next-property-cleaning', propertyId],
+        removeItem,
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: ['upcoming-cleanings'],
+        refetchType: 'all',
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['next-property-cleaning', propertyId],
+        exact: true,
+        refetchType: 'all',
+      });
+    },
+  });
+}
+
+export function useUpdateCleaningChecklistItems() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      cleaningId,
+      updates,
+    }: {
+      cleaningId: number;
+      propertyId: number;
+      updates: { id: number; isComplete: boolean }[];
+    }) =>
+      Promise.all(
+        updates.map(({ id, isComplete }) =>
+          updateCleaningChecklistItem(cleaningId, id, isComplete),
+        ),
+      ),
+
+    onSuccess: async (updatedItems, { cleaningId, propertyId }) => {
+      const applyUpdates = (cleaning: Cleaning | undefined) =>
+        cleaning?.id === cleaningId
+          ? {
+              ...cleaning,
+              cleaningChecklistItems: cleaning.cleaningChecklistItems.map(
+                (item) =>
+                  updatedItems.find((updated) => updated.id === item.id) ??
+                  item,
+              ),
+            }
+          : cleaning;
+
+      queryClient.setQueryData<Cleaning>(
+        ['cleaning-id', cleaningId],
+        applyUpdates,
+      );
+
+      queryClient.setQueriesData<Cleaning[]>(
+        { queryKey: ['upcoming-cleanings'] },
+        (cleanings) => cleanings?.map((cleaning) => applyUpdates(cleaning)!),
+      );
+
+      queryClient.setQueryData<Cleaning>(
+        ['next-property-cleaning', propertyId],
+        applyUpdates,
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['cleaning-id', cleaningId],
+          exact: true,
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['upcoming-cleanings'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['next-property-cleaning', propertyId],
+          exact: true,
+          refetchType: 'all',
+        }),
+      ]);
+    },
+  });
+}

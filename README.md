@@ -2,296 +2,245 @@
 
 Restful Housekeeping is a cross-platform application for coordinating short-term rental cleanings. It gives property managers one place to organize properties, cleaning schedules, reusable checklists, and cleaner assignments, while giving cleaners a focused view of their upcoming work and task details.
 
-This capstone project is divided into two repositories:
+This Sheridan College capstone project contains both applications in one repository:
 
-- [Frontend repository](https://github.com/sophieynw/capstone-frontend) — Expo and React Native client
-- [Backend repository](https://github.com/sophieynw/capstone-backend) — Spring Boot REST API
+- [Frontend](frontend/) — Expo and React Native mobile app
+- [Backend](backend/) — Spring Boot REST API
 
 ## Project overview
 
-Managing cleaning operations across multiple short-term rental properties can involve scattered schedules, messages, access instructions, and task lists. Restful Housekeeping brings these details together in a role-based application designed for both property managers and cleaners.
+Managing cleaning operations across multiple short-term rental properties can involve scattered schedules, messages, access instructions, and task lists. Restful Housekeeping brings these details together in a role-based application designed for property managers and cleaners.
 
-Managers can create properties and cleanings, reuse property-specific checklists, assign cleaners, and monitor upcoming work. Cleaners can view their assignments, access cleaning instructions, work through task lists, attach photos, and mark cleanings as complete.
+Managers can organize properties, schedule cleanings, assign cleaners, and manage their team. Cleaners can view assignments, set weekly availability, follow checklists, upload photos, report issues, and mark cleanings as complete.
 
 ## Core features
 
 ### Property managers
 
 - View today's and upcoming cleanings from a dashboard
-- See whether each cleaning is unassigned, assigned, or complete
-- Create cleaning appointments with start and end times
-- Assign a cleaner or leave a cleaning unassigned
-- Add properties with addresses and access instructions
-- Create reusable checklist items for each property
-- Add custom checklist items to an individual cleaning
-- View team members and contact them by phone
-- Review property details and the next scheduled cleaning
+- Create, reschedule, and delete cleanings
+- Assign or change a cleaner, or leave a cleaning unassigned
+- Manage properties, addresses, access instructions, and property photos
+- Create reusable property checklists and add tasks to individual cleanings
+- Invite cleaners to an organization and manage team membership
+- Import Airbnb calendars to schedule cleanings from reservations
+- Review cleaning notes, uploaded photos, and reported issues
+- Resolve issues reported by cleaners
 
 ### Cleaners
 
 - View assigned and upcoming cleanings
-- Open a cleaning to see its schedule and status
-- Read property addresses and access instructions
-- Work through a cleaning checklist
-- Add notes and select photos from the device
-- Mark a cleaning as complete
+- Read property addresses and cleaning instructions
+- Set and edit weekly availability for each day of the week
+- Toggle checklist items with changes saved on tap
+- Add cleaning notes and upload photos
+- Open cleaning photos in a full-screen viewer
+- Report issues during a cleaning
+- Mark cleanings as complete
+- Accept or decline team invitations
 
 ### Application capabilities
 
 - Separate manager and cleaner experiences
-- JWT-based authentication
-- Secure client-side token storage with Expo SecureStore
-- Authenticated REST API requests
+- Account registration, sign-in, and sign-out
+- JWT authentication and secure token storage with Expo SecureStore
 - Server-state caching and refresh with TanStack Query
-- Development data loaded automatically at backend startup
+- In-app messaging using WebSockets and STOMP
+- ImageKit cloud storage for photos
+- Profile editing and profile photo uploads
+- Sample data loaded by the local H2 profile
 - Interactive API documentation through Swagger UI
 
 ## Tech stack
 
 ### Frontend
 
-- React 19
-- React Native 0.81
-- Expo SDK 54
+- React 19 and React Native 0.88
+- Expo SDK 58
 - TypeScript
 - React Navigation
-- TanStack Query
-- Axios
+- TanStack Query and Axios
 - NativeWind and Gluestack UI
-- Expo SecureStore
-- Expo Image Picker
+- React Hook Form
+- Expo SecureStore and Expo Image Picker
+- STOMP client for messaging
 - Lucide icons
 
 ### Backend
 
-- Java 25
-- Spring Boot 4
-- Spring MVC
-- Spring Data JPA
+- Java 25 and Spring Boot 4
+- Spring MVC and Spring Data JPA
+- Spring Security and JSON Web Tokens
+- Spring WebSocket and Spring Mail
 - H2 for local development
 - MySQL for Docker and cloud deployment
-- Spring Security
-- JSON Web Tokens
+- ImageKit Java SDK
+- ical4j for calendar imports
 - Springdoc OpenAPI and Swagger UI
-- Maven
-- Lombok
+- Maven and Lombok
 
 ## Architecture
 
-```text
-┌──────────────────────────────────────┐
-│ Expo / React Native application      │
-│                                      │
-│ Screens → hooks → API modules        │
-│ SecureStore holds the JWT            │
-└──────────────────┬───────────────────┘
-                   │ HTTP + JSON
-                   │ Bearer token
-                   ▼
-┌──────────────────────────────────────┐
-│ Spring Boot REST API                 │
-│                                      │
-│ Controllers → services → repositories│
-│ Spring Security validates the JWT    │
-└──────────────────┬───────────────────┘
-                   │ JPA
-                   ▼
-┌──────────────────────────────────────┐
-│ H2 locally / persistent MySQL when   │
-│ running with Docker or in the cloud  │
-└──────────────────────────────────────┘
+The frontend uses screens, hooks, and API modules. REST requests carry a JWT from SecureStore, while in-app messaging uses a WebSocket connection. The backend separates request handling, business logic, and database access into controllers, services, and repositories.
+
+```mermaid
+flowchart TD
+    App["Expo / React Native app"] -->|"HTTP + JSON / JWT"| API["Spring Boot API"]
+    App <-->|"WebSocket / STOMP"| API
+    API -->|"Spring Data JPA"| DB["H2 locally / MySQL with Docker"]
+    API --> Images["ImageKit photo storage"]
+    API --> Mail["SMTP email server"]
 ```
 
 ## User roles
 
-The application supports two roles:
-
 | Role | Main navigation | Primary responsibilities |
 |---|---|---|
-| Manager | Dashboard, Properties, Profile | Manage properties, schedules, checklists, assignments, and team information |
-| Cleaner | Dashboard, Availability, Profile | Review assigned work, follow checklists, add cleaning details, and complete cleanings |
+| Manager | Dashboard, Properties, Profile | Manage properties, schedules, assignments, checklists, team members, and reported issues |
+| Cleaner | Dashboard, Availability, Profile | Review assigned work, set availability, complete tasks, add notes and photos, and report issues |
 
-Authentication state determines whether the login screen or the authenticated application is displayed. Once signed in, the user's role controls which tabs and actions are available.
+Authentication determines whether the login screens or the authenticated application is displayed. The user's role controls the available navigation and actions.
 
 ## Getting started
 
 ### Prerequisites
 
-Install the following:
-
 - Git
 - Node.js and npm
-- Expo Go, an Android emulator, or an iOS simulator
 - Java 25
+- An iOS simulator, Android emulator, or compatible Expo Go installation
 
 The backend includes the Maven Wrapper, so Maven does not need to be installed separately.
 
-### 1. Clone both repositories
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/sophieynw/capstone-backend.git
-git clone https://github.com/sophieynw/capstone-frontend.git
+git clone https://github.com/sophieynw/capstone.git
+cd capstone
 ```
-
-The commands below assume the repositories are stored beside one another.
 
 ### 2. Start the backend
 
-On macOS or Linux:
+From the repository root:
 
 ```bash
-cd capstone-backend/restfulhousekeeping
+cd backend
 ./mvnw spring-boot:run
 ```
 
-On Windows:
+On Windows, use `mvnw.cmd spring-boot:run`.
 
-```powershell
-cd capstone-backend/restfulhousekeeping
-mvnw.cmd spring-boot:run
-```
+The API runs at `http://localhost:50000`. Development tools are available at:
 
-The API runs at:
+- [Swagger UI](http://localhost:50000/swagger-ui/index.html)
+- [OpenAPI JSON](http://localhost:50000/v3/api-docs)
+- [H2 console](http://localhost:50000/h2-console)
 
-```text
-http://localhost:50000
-```
+The default H2 profile uses an in-memory database and loads sample organizations, users, properties, checklists, and cleanings. Its data resets whenever the backend restarts.
 
-Development tools are available at:
-
-- Swagger UI: `http://localhost:50000/swagger-ui/index.html`
-- OpenAPI JSON: `http://localhost:50000/v3/api-docs`
-- H2 console: `http://localhost:50000/h2-console`
-
-The backend uses `jdbc:h2:mem:testdb`. Because this is an in-memory database, its contents are reset whenever the server restarts. The application bootstrap class loads sample organizations, users, properties, checklists, and cleanings for development.
-
-For local Docker with persistent MySQL, Docker Hub publishing, and Render deployment instructions, see [`restfulhousekeeping/README.Docker.md`](restfulhousekeeping/README.Docker.md).
+For the H2 console, use JDBC URL `jdbc:h2:mem:testdb`, username `sa`, and a blank password.
 
 ### 3. Configure the frontend connection
 
-The frontend chooses its API address based on the current platform in `restfulhousekeeping/api/apiClient.ts`.
+Check `API_BASE_URL` in [frontend/api/apiClient.ts](frontend/api/apiClient.ts).
 
 | Platform | API address |
 |---|---|
 | iOS simulator | `http://127.0.0.1:50000` |
 | Android emulator | `http://10.0.2.2:50000` |
-| Web or physical device | `http://<computer-lan-ip>:50000` |
+| Physical device | `http://<your-computer-lan-ip>:50000` |
 
-Replace the existing default LAN address in `api/apiClient.ts` with the current IP address of the computer running the backend. A physical device must be connected to the same local network as that computer.
+For a physical device, replace the matching platform entry (`ios` or `android`) with your computer's LAN address. The device and computer must be on the same network; changing only the `default` entry will not override the iOS or Android entry.
 
 ### 4. Install and run the frontend
 
-Open a second terminal:
+Open a second terminal from the repository root:
 
 ```bash
-cd capstone-frontend/restfulhousekeeping
+cd frontend
 npm ci
 npm start
 ```
 
-Use the Expo development server to open the app in Expo Go or a simulator. Platform-specific scripts are also available:
+Open the app through the Expo development server. You can also use `npm run ios` or `npm run android` to open a simulator or emulator.
 
-```bash
-npm run android
-npm run ios
-npm run web
-```
+### Demo accounts
+
+The local sample data includes these accounts. Each uses the password `password`.
+
+| Role | Username |
+|---|---|
+| Manager | `sophie` |
+| Cleaner | `robert` |
+| Cleaner | `katie` |
+
+### Optional services
+
+- **Photos:** Set `IMAGEKIT_PRIVATE_KEY` before starting the backend to upload photos and view private cleaning photos. On macOS or Linux, run `export IMAGEKIT_PRIVATE_KEY='your-private-key'` in the same terminal before starting Maven. Keep the key out of Git.
+- **Email:** The local configuration expects an SMTP server, such as Mailpit, at `localhost:1025`.
+- **Docker and MySQL:** See [backend/README.Docker.md](backend/README.Docker.md). Docker Compose exposes the API on port `8080`, so update the frontend API URL to match when using Docker.
 
 ## Authentication
 
-The backend exposes two public authentication endpoints:
-
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/api/v1/auth/register` | Register a user through the API |
-| `POST` | `/api/v1/auth/authenticate` | Validate credentials and return a JWT and user profile |
+| `POST` | `/api/v1/auth/register` | Create a manager or cleaner account |
+| `POST` | `/api/v1/auth/authenticate` | Sign in and receive a JWT and user profile |
+| `GET` | `/api/v1/auth/username-availability` | Check whether a username is available |
 
-All other API endpoints require a bearer token. The frontend stores the token with Expo SecureStore and automatically includes it in the `Authorization` header of subsequent requests.
-
-The current frontend implements sign-in and sign-out. Account registration and password recovery are not yet connected to the interface.
+Protected REST requests include the token in the `Authorization` header. The frontend stores it with Expo SecureStore. Managers register with an organization name; cleaners can join an organization through a manager's invitation.
 
 ## API areas
 
-The backend provides REST endpoints for:
+The backend provides endpoints for:
 
-- Authentication
-- Organizations
-- Users and cleaners
-- Properties
-- Property checklist items
-- Cleanings and cleaning completion
-- Cleaner availability
-- Availability slots
+- Authentication, organizations, users, and profiles
+- Properties and reusable checklists
+- Cleanings, assignments, schedules, and completion
+- Cleaning checklist items, notes, and photos
+- Cleaner availability and availability slots
+- Team invitations
+- Chat messages
+- Airbnb calendar imports
+- Issue reporting and resolution
 
-Swagger UI provides the complete, interactive endpoint reference. Authenticate first, copy the returned token, and use Swagger's authorization control to call protected endpoints.
+Swagger UI provides the interactive endpoint reference. Authenticate first, then use Swagger's authorization control with the returned JWT to call protected endpoints.
 
 ## Project structure
 
-### Frontend
+| Path | Contents |
+|---|---|
+| `frontend/api/` | Axios client and feature-specific API requests |
+| `frontend/auth/` | Authentication context and token storage |
+| `frontend/components/` | Reusable feature and UI components |
+| `frontend/hooks/` | TanStack Query hooks |
+| `frontend/screens/` | Shared, manager, and cleaner screens |
+| `frontend/styles/`, `frontend/types/`, `frontend/utils/` | Shared styles, types, and helpers |
+| `frontend/App.tsx`, `frontend/Navigation.tsx` | Application providers and navigation |
+| `backend/src/main/java/ca/sheridancollege/restfulhousekeeping/` | Backend source code |
+| `backend/src/main/resources/` | Application configuration and database profiles |
+| `backend/src/test/` | Backend tests |
+| `backend/pom.xml` | Maven dependencies and build configuration |
+| `backend/compose.yaml` | Local Docker and MySQL services |
 
-```text
-capstone-frontend/
-└── restfulhousekeeping/
-    ├── api/             # Axios client and feature-specific requests
-    ├── assets/          # Branding, icons, and supporting images
-    ├── auth/            # Authentication context and token persistence
-    ├── components/      # Reusable feature and UI components
-    ├── hooks/           # TanStack Query hooks
-    ├── screens/
-    │   ├── cleaner/     # Cleaner-specific screens
-    │   └── manager/     # Manager-specific screens
-    ├── styles/          # Shared React Native styles
-    ├── types/           # TypeScript domain models
-    ├── App.tsx          # Application providers and entry component
-    └── Navigation.tsx   # Authentication and role-aware navigation
-```
-
-### Backend
-
-```text
-capstone-backend/
-└── restfulhousekeeping/
-    ├── pom.xml
-    └── src/
-        ├── main/java/ca/sheridancollege/restfulhousekeeping/
-        │   ├── beans/        # JPA entities
-        │   ├── bootstrap/    # Development sample data
-        │   ├── config/       # Security and application configuration
-        │   ├── controllers/  # REST controllers
-        │   ├── models/       # API request and response models
-        │   ├── repositories/ # Spring Data repositories
-        │   └── services/     # Business and response-mapping logic
-        ├── main/resources/
-        │   └── application.properties
-        └── test/             # Backend tests
-```
+The backend source is organized into `beans`, `bootstrap`, `config`, `controllers`, `models`, `repositories`, and `services`.
 
 ## Current development status
 
-The main branch implements the core authentication, property, cleaning, assignment, checklist, and cleaning-completion flows. Some interface elements are prototypes or are still marked as coming soon:
+The project includes the core property and cleaning workflows, saved availability, checklist updates, notes, photo uploads, team invitations, messaging, issue reporting, and Airbnb calendar imports.
 
-- Cleaner availability can be entered in the interface but is not yet saved
-- Notes, selected photos, and checklist edits on the cleaning-details screen are not persisted
-- Reported issues use placeholder data and are not connected to active API endpoints
-- Inviting, messaging, and removing team members are not yet implemented in the client
-- Changing a cleaner from the cleaning-details screen is not yet saved
-- Property editing and cleaning deletion are not yet connected
-- Airbnb and Vrbo integrations are placeholders
-- Frontend registration and password recovery are not implemented
-- Frontend automated tests are not configured
+Password recovery is still marked as coming soon. The frontend does not currently define an automated test script.
 
 ## Tests
 
-Run the backend test suite from the backend application directory:
+Run the backend test suite from the repository root:
 
 ```bash
-cd capstone-backend/restfulhousekeeping
+cd backend
 ./mvnw test
 ```
 
 On Windows, use `mvnw.cmd test`.
-
-The frontend does not currently define an automated test script.
 
 ## Contributors
 

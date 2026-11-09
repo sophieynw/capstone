@@ -15,7 +15,15 @@ Managers can organize properties, schedule cleanings, assign cleaners, and manag
 
 ## Demo
 
-[![Watch the Restful Housekeeping demo](https://img.youtube.com/vi/d7K5cwK-oac/maxresdefault.jpg)](https://youtu.be/d7K5cwK-oac)
+### ▶️ Watch the Demo
+
+<a href="https://youtu.be/d7K5cwK-oac" target="_blank" rel="noopener noreferrer">
+  <img
+    src="https://img.youtube.com/vi/d7K5cwK-oac/maxresdefault.jpg"
+    alt="Watch the Restful Housekeeping demo"
+    width="600"
+  />
+</a>
 
 ## Core features
 

@@ -7,6 +7,7 @@ import java.util.function.Function;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +19,10 @@ import io.jsonwebtoken.security.Keys;
 @Service
 public class JwtService {
 	
-	private static final String SECRET_KEY = "VGhpcyBpcyBhIHNlY3JldCBrZXkgLSBpdCBzaG91bGQgYmUgb3JpZ2luYWwgLSBhbmQgb2YgYSBkZWNlbnQgbGVuZ3Ro";
+	// comes from the JWT_SECRET environment variable when deployed
+	// (see jwt.secret in application.properties)
+	@Value("${jwt.secret}")
+	private String secretKey;
 	
 	public String extractUsername(String token) {
 		return extractClaim(token, Claims::getSubject);
@@ -66,7 +70,7 @@ public class JwtService {
 	private SecretKey getSignInKey() {
 		// String genSecretKey = Encoders.BASE64.encode("This will become a secret key - this String should be original - and of a decent length.".getBytes());
 		// System.out.println(genSecretKey);
-		byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+		byte[] keyBytes = Decoders.BASE64.decode(secretKey);
 		return Keys.hmacShaKeyFor(keyBytes);
 	}
 	

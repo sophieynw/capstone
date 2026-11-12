@@ -68,23 +68,34 @@ public class IssueController {
     // only updates the type and description (cleaningId in the body is ignored)
     @PutMapping("/{id}")
     public ResponseEntity<IssueResponse> update(@PathVariable Long id,
-            @RequestBody CreateIssueRequest request) {
+            @RequestBody CreateIssueRequest request,
+            @AuthenticationPrincipal User manager) {
         validateText(request);
 
-        return issueRepository.findById(id).map(existing -> {
-            existing.setIssueType(request.getIssueType().trim());
-            existing.setDescription(request.getDescription().trim());
-            return ResponseEntity.ok(IssueResponse.fromIssue(issueRepository.save(existing)));
-        }).orElse(ResponseEntity.notFound().build());
+        Issue existing = findOwnIssue(id, manager);
+        existing.setIssueType(request.getIssueType().trim());
+        existing.setDescription(request.getDescription().trim());
+        return ResponseEntity.ok(IssueResponse.fromIssue(issueRepository.save(existing)));
     }
 
+    // resolving an issue deletes it
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        if (!issueRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-        issueRepository.deleteById(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id,
+            @AuthenticationPrincipal User manager) {
+        Issue issue = findOwnIssue(id, manager);
+        issueRepository.delete(issue);
         return ResponseEntity.noContent().build();
+    }
+
+    // finds an issue on one of the manager's own properties,
+    // otherwise acts like it doesn't exist
+    private Issue findOwnIssue(Long id, User manager) {
+        return issueRepository.findById(id)
+                .filter(issue -> issue.getCleaning() != null
+                        && issue.getCleaning().getProperty() != null
+                        && issue.getCleaning().getProperty().getManager() != null
+                        && issue.getCleaning().getProperty().getManager().getId().equals(manager.getId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found"));
     }
 
     private void validateText(CreateIssueRequest request) {

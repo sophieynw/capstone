@@ -54,6 +54,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.PATCH, "/cleanings/*/checklist-items/*").hasAuthority("CLEANER")
 						.requestMatchers(HttpMethod.POST, "/photos/cleaning/*").hasAuthority("CLEANER")
 						.requestMatchers(HttpMethod.DELETE, "/photos/*").hasAuthority("CLEANER")
+						.requestMatchers(HttpMethod.PUT, "/issues/*").hasAuthority("MANAGER")
+						.requestMatchers(HttpMethod.DELETE, "/issues/*").hasAuthority("MANAGER")
 						.requestMatchers(HttpMethod.GET, "/organizations").permitAll()
 						// TODO comment or remove for production
 						.requestMatchers("/availability-slots", "/availability-slots/**").hasAuthority("CLEANER")

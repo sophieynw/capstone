@@ -69,6 +69,14 @@ public class Cleaning {
 	@Builder.Default
 	private List<CleaningPhoto> cleaningPhotos = new ArrayList<>();
 
+	// so deleting a cleaning also deletes its issues
+	@OneToMany(mappedBy = "cleaning", cascade = CascadeType.REMOVE)
+	@JsonIgnore
+	@EqualsAndHashCode.Exclude
+	@ToString.Exclude
+	@Builder.Default
+	private List<Issue> issues = new ArrayList<>();
+
 	
 	@OneToMany(
 		    mappedBy = "cleaning",

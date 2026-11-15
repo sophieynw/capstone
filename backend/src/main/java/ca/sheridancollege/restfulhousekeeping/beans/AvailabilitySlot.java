@@ -18,10 +18,6 @@ public class AvailabilitySlot {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	@ManyToOne
-	@JoinColumn(name="availabilityId")
-	private Availability availability;
-
-	@ManyToOne
 	@JoinColumn(name="cleanerId", nullable=false)
 	private User cleaner;
 

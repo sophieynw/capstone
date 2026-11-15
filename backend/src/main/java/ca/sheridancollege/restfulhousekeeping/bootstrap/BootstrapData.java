@@ -16,7 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import ca.sheridancollege.restfulhousekeeping.beans.Availability;
 import ca.sheridancollege.restfulhousekeeping.beans.AvailabilitySlot;
 import ca.sheridancollege.restfulhousekeeping.beans.ChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
@@ -26,7 +25,6 @@ import ca.sheridancollege.restfulhousekeeping.beans.Organization;
 import ca.sheridancollege.restfulhousekeeping.beans.Property;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
-import ca.sheridancollege.restfulhousekeeping.repositories.AvailabilityRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.ChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.OrganizationRepository;
@@ -44,19 +42,14 @@ public class BootstrapData implements CommandLineRunner {
 	private final UserRepository userRepository;
 	private final PropertyRepository propertyRepository;
 	private final CleaningRepository cleaningRepository;
-	private final AvailabilityRepository availabilityRepository;
 	private final ChecklistItemRepository checklistItemRepository;
 	private final SlotRepository slotRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final RecurringChecklistService recurringChecklistService;
 
 	private void seedAvailability(User cleaner, DayOfWeek... days) {
-		Availability availability = availabilityRepository.save(Availability.builder()
-				.cleaner(cleaner)
-				.build());
 		for (DayOfWeek day : days) {
 			slotRepository.save(AvailabilitySlot.builder()
-					.availability(availability)
 					.cleaner(cleaner)
 					.dayOfWeek(day)
 					.startTime(LocalTime.of(9, 0))

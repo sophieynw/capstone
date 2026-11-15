@@ -73,7 +73,7 @@ function CleaningCard({
     null,
   );
   const cleanerName = cleaner
-    ? `${cleaner.firstName} ${cleaner.lastName}`
+    ? `${cleaner.firstName} ${cleaner.lastName[0]}`
     : 'Cleaner';
   const profilePictureUri =
     profilePicture && profilePicture !== failedImage ? profilePicture : null;

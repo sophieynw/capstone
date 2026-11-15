@@ -100,7 +100,6 @@ export interface Property {
 
 export interface AvailabilitySlot {
   id: number;
-  //private Availability availability;
   cleanerId: number;
   dayOfWeek: DaysOfTheWeek;
   startTime: string;

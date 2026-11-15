@@ -1,4 +1,5 @@
 import { Heading } from '@/components/ui/heading';
+import { Text } from '@/components/ui/text';
 import { View } from 'react-native';
 import {
   Select,
@@ -22,6 +23,7 @@ type DetailsSectionProps = {
   setPropertySelected: (property: string) => void;
   cleaners: User[] | undefined;
   cleanerSelected: string;
+  selectedCleanerLabel: string;
   setCleanerSelected: (cleaning: string) => void;
   startDateSelected: Date;
   setStartDateSelected: (startDate: Date) => void;
@@ -35,6 +37,7 @@ export function DetailsSection({
   setPropertySelected,
   cleaners,
   cleanerSelected,
+  selectedCleanerLabel,
   setCleanerSelected,
   startDateSelected,
   setStartDateSelected,
@@ -44,42 +47,52 @@ export function DetailsSection({
   return (
     <>
       <Heading size='md'>Details</Heading>
-      <View className='flex-row gap-4 justify-center'>
-        {/* Properties */}
+      <Select
+        selectedValue={propertySelected}
+        onValueChange={setPropertySelected}
+      >
+        <SelectTrigger size='md' variant='rounded'>
+          <SelectInput className='min-w-0 flex-1' placeholder='Property' />
+          <SelectIcon className='mr-3 shrink-0' as={ChevronDown} />
+        </SelectTrigger>
+        <SelectPortal useRNModal>
+          <SelectBackdrop />
+          <SelectContent>
+            <SelectDragIndicatorWrapper>
+              <SelectDragIndicator />
+            </SelectDragIndicatorWrapper>
+            {properties?.map((propertyItem) => (
+              <SelectItem
+                key={propertyItem.id}
+                label={propertyItem.name}
+                value={propertyItem.id.toString()}
+              />
+            ))}
+          </SelectContent>
+        </SelectPortal>
+      </Select>
+      <View className='flex-row items-center gap-2'>
+        <Text className='w-24 shrink-0'>Cleaner:</Text>
         <Select
-          selectedValue={propertySelected}
-          onValueChange={setPropertySelected}
-        >
-          <SelectTrigger size='md' variant='rounded'>
-            <SelectInput placeholder='Property' />
-            <SelectIcon className='mr-3' as={ChevronDown} />
-          </SelectTrigger>
-          <SelectPortal useRNModal>
-            <SelectBackdrop />
-            <SelectContent>
-              <SelectDragIndicatorWrapper>
-                <SelectDragIndicator />
-              </SelectDragIndicatorWrapper>
-              {properties?.map((propertyItem) => (
-                <SelectItem
-                  key={propertyItem.id}
-                  label={propertyItem.name}
-                  value={propertyItem.id.toString()}
-                />
-              ))}
-            </SelectContent>
-          </SelectPortal>
-        </Select>
-        {/* Cleaner */}
-        <Select
+          className='min-w-0 flex-1'
           selectedValue={cleanerSelected}
           onValueChange={(value) =>
             setCleanerSelected(value === 'unassigned' ? '' : value)
           }
         >
-          <SelectTrigger size='md' variant='rounded'>
-            <SelectInput placeholder='Unassigned' />
-            <SelectIcon className='mr-3' as={ChevronDown} />
+          <SelectTrigger
+            size='md'
+            variant='rounded'
+            accessibilityLabel={`Cleaner: ${selectedCleanerLabel}`}
+          >
+            <Text
+              className='min-w-0 flex-1 px-4 text-foreground/90'
+              numberOfLines={1}
+              ellipsizeMode='tail'
+            >
+              {selectedCleanerLabel}
+            </Text>
+            <SelectIcon className='mr-3 shrink-0' as={ChevronDown} />
           </SelectTrigger>
           <SelectPortal useRNModal>
             <SelectBackdrop />
@@ -91,7 +104,7 @@ export function DetailsSection({
               {cleaners?.map((cleanerItem) => (
                 <SelectItem
                   key={cleanerItem.id}
-                  label={`${cleanerItem.firstName} ${cleanerItem.lastName.charAt(0)}.`}
+                  label={`${cleanerItem.firstName} ${cleanerItem.lastName}`}
                   value={cleanerItem.id.toString()}
                 />
               ))}

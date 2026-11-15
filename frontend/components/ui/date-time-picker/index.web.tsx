@@ -4,6 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, Pressable, TextInput } from 'react-native';
 import { Calendar } from '@/components/ui/calendar';
 import { PrimitiveIcon } from '@gluestack-ui/core/icon/creator';
+import { formatDateTimeLabel } from '@/utils/formatDateTimeLabel';
 
 type DateTimePickerMode = 'date' | 'time' | 'datetime';
 
@@ -91,7 +92,7 @@ const DateTimePicker = React.forwardRef<
     if (!value) return '';
     if (mode === 'time') return formatTimeForInput(value);
     if (mode === 'date') return formatDate(value);
-    return `${formatDate(value)} ${formatTimeForInput(value)}`;
+    return formatDateTimeLabel(value);
   }, [value, mode]);
 
   return (

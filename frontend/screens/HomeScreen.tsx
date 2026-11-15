@@ -1,7 +1,9 @@
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Text } from '@/components/ui/text';
 import { useCallback, useContext, useState } from 'react';
 import { AuthContext } from '@/auth/AuthContext';
-import { groupCleaningsByDate, toFriendlyDate } from '@/utils/helpers';
+import { groupCleaningsByDate } from '@/utils/helpers';
+import { formatDateTimeLabel } from '@/utils/formatDateTimeLabel';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
@@ -95,10 +97,14 @@ function CleaningCard({
         <View style={styles.mediumCardWithAvatarLeft}>
           <Heading size='md'>{cleaning.property.name}</Heading>
           <View className='gap-1'>
-            <Text>{toFriendlyDate(cleaning.dateTimeStart)}</Text>
+            <Text>
+              {formatDateTimeLabel(cleaning.dateTimeStart, {
+                includeWeekday: true,
+              })}
+            </Text>
             <Text>
               {cleaning.cleanerId !== null
-                ? `Assigned to ${cleanerName}`
+                ? `Assigned to ${cleanerName}.`
                 : 'Unassigned'}
             </Text>
           </View>
@@ -147,22 +153,22 @@ function ManagerActions({ navigation }: any) {
   return (
     <>
       <Button
-        className='w-40'
+        className='w-45'
         style={styles.button}
         size='lg'
         onPress={() => navigation.navigate('ManageTeamScreen')}
       >
         <ButtonIcon style={styles.buttonText} as={UsersRound} />
-        <ButtonText style={styles.buttonText}>My Team</ButtonText>
+        <ButtonText style={styles.buttonText}>Team</ButtonText>
       </Button>
       <Button
-        className='w-40'
+        className='w-45'
         style={styles.button}
         size='lg'
         onPress={() => navigation.navigate('NewCleaningScreen')}
       >
         <ButtonIcon style={styles.buttonText} as={Plus} />
-        <ButtonText style={styles.buttonText}>New Cleaning</ButtonText>
+        <ButtonText style={styles.buttonText}>Cleaning</ButtonText>
       </Button>
     </>
   );
@@ -189,18 +195,18 @@ function ManagerInfo({
     <>
       <Card style={styles.summaryCard} className={cleaningCardColors.assigned}>
         <View style={styles.summaryCardVisual}>
-          <Heading size='2xl'>{upcoming}</Heading>
+          <Heading>{upcoming}</Heading>
         </View>
-        <Text>Upcoming</Text>
+        <Text size='xs'>Upcoming</Text>
       </Card>
       <Card
         style={styles.summaryCard}
         className={cleaningCardColors.unassigned}
       >
         <View style={styles.summaryCardVisual}>
-          <Heading size='2xl'>{unassigned}</Heading>
+          <Heading>{unassigned}</Heading>
         </View>
-        <Text>Unassigned</Text>
+        <Text size='xs'>Unassigned</Text>
       </Card>
       <Card style={styles.summaryCard}>
         <Pressable
@@ -210,9 +216,9 @@ function ManagerInfo({
           accessibilityLabel='View issues'
         >
           <View style={styles.summaryCardVisual}>
-            <Heading size='2xl'>{issues}</Heading>
+            <Heading>{issues}</Heading>
           </View>
-          <Text>Issues</Text>
+          <Text size='xs'>Issues</Text>
         </Pressable>
       </Card>
     </>
@@ -240,16 +246,16 @@ function CleanerInfo({
     <>
       <Card style={styles.summaryCard} className={cleaningCardColors.assigned}>
         <View style={styles.summaryCardVisual}>
-          <Heading size='2xl'>{upcoming}</Heading>
+          <Heading>{upcoming}</Heading>
         </View>
-        <Text>Assigned</Text>
+        <Text size='xs'>Assigned</Text>
       </Card>
 
       <Card style={styles.summaryCard} className={cleaningCardColors.complete}>
         <View style={styles.summaryCardVisual}>
-          <Heading size='2xl'>{completed}</Heading>
+          <Heading>{completed}</Heading>
         </View>
-        <Text>Completed</Text>
+        <Text size='xs'>Completed</Text>
       </Card>
 
       <Card style={styles.summaryCard}>
@@ -263,7 +269,7 @@ function CleanerInfo({
           <View style={styles.summaryCardVisual}>
             <Icon as={MessageCircle} size='xl' />
           </View>
-          <Text>Chat</Text>
+          <Text size='xs'>Chat</Text>
         </Pressable>
       </Card>
     </>

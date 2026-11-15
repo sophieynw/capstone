@@ -28,6 +28,7 @@ import {
   dateTimePickerStyle,
   dateTimePickerTriggerStyle,
 } from './styles';
+import { formatDateTimeLabel } from '@/utils/formatDateTimeLabel';
 
 const SCOPE = 'DATE_TIME_PICKER';
 
@@ -492,15 +493,15 @@ const DateTimePickerInput = React.forwardRef<
   IDateTimePickerInputProps
 >(function DateTimePickerInput({ className, ...props }, ref) {
   const { size: parentSize, variant: parentVariant } = useStyleContext(SCOPE);
-  const { value, placeholder, format } = useDateTimePicker();
+  const { value, mode, placeholder, format } = useDateTimePicker();
 
   const displayValue = useMemo(() => {
     if (!value) return '';
     if (format) {
       return formatDate(value, format);
     }
-    return value.toLocaleString();
-  }, [value, format]);
+    return mode === 'datetime' ? formatDateTimeLabel(value) : value.toLocaleString();
+  }, [value, mode, format]);
 
   return (
     <UIDateTimePicker.Input

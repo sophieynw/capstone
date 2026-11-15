@@ -83,6 +83,12 @@ export default function NewCleaningScreen() {
   const selectedCleaner = availableCleaners.find(
     (cleaner) => cleaner.id.toString() === cleanerSelected,
   );
+  const assignedCleaner = selectedCleaner ?? cleaners?.find(
+    (cleaner) => cleaner.id.toString() === cleanerSelected,
+  );
+  const selectedCleanerLabel = assignedCleaner
+    ? `${assignedCleaner.firstName} ${assignedCleaner.lastName}`
+    : 'Unassigned';
 
   function handleSubmit() {
     if (!user) {
@@ -155,20 +161,6 @@ export default function NewCleaningScreen() {
       {/* Header */}
       <View style={styles.modalHeader}>
         <Heading size='2xl'>New Cleaning</Heading>
-        <Button
-          className='rounded-full'
-          style={[styles.button, styles.modalHeaderButton]}
-          size='lg'
-          onPress={handleSubmit}
-          isDisabled={
-            createCleaningMutation.isPending || isChecklistItemsLoading || isChecklistItemsError
-          }
-        >
-          <ButtonIcon style={styles.buttonText} as={SaveIcon} />
-          <ButtonText style={styles.buttonText}>
-            {createCleaningMutation.isPending ? 'Saving...' : 'Save'}
-          </ButtonText>
-        </Button>
       </View>
 
       {/* Content */}
@@ -185,6 +177,7 @@ export default function NewCleaningScreen() {
             }}
             cleaners={availableCleaners}
             cleanerSelected={cleanerSelected}
+            selectedCleanerLabel={selectedCleanerLabel}
             setCleanerSelected={setCleanerSelected}
             startDateSelected={startDateSelected}
             setStartDateSelected={setStartDateSelected}
@@ -212,6 +205,21 @@ export default function NewCleaningScreen() {
 
           <NotesSection notes={notes} setNotes={setNotes} />
         </Card>
+
+        <Button
+          className='rounded-full'
+          style={styles.button}
+          size='lg'
+          onPress={handleSubmit}
+          isDisabled={
+            createCleaningMutation.isPending || isChecklistItemsLoading || isChecklistItemsError
+          }
+        >
+          <ButtonIcon style={styles.buttonText} as={SaveIcon} />
+          <ButtonText style={styles.buttonText}>
+            {createCleaningMutation.isPending ? 'Saving...' : 'Save'}
+          </ButtonText>
+        </Button>
       </View>
     </ScrollView>
   );

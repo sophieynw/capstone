@@ -190,21 +190,6 @@ export default function PropertyDetailsScreen({ route }: any) {
       {/* Heading */}
       <View style={styles.modalHeader}>
         <Heading size='2xl'>Property Details</Heading>
-
-        <View style={styles.modalHeaderActions}>
-          <Button
-            className='rounded-full'
-            style={[styles.button, styles.modalHeaderButton]}
-            size='lg'
-            onPress={handleUpdate}
-            isDisabled={isPropertyMutationPending}
-          >
-            <ButtonIcon style={styles.buttonText} as={Save} />
-            <ButtonText style={styles.buttonText}>
-              {updatePropertyMutation.isPending ? 'Saving...' : 'Save'}
-            </ButtonText>
-          </Button>
-        </View>
       </View>
 
       {/* Content */}
@@ -292,21 +277,32 @@ export default function PropertyDetailsScreen({ route }: any) {
         {/* Issues */}
         <ReportedIssuesSection issues={issues ?? []} />
 
-        {/* Delete Button */}
-        <Button
-          className='rounded-full'
-          style={[styles.buttonWarn, styles.modalHeaderButton]}
-          size='lg'
-          onPress={handleDelete}
-          isDisabled={isPropertyMutationPending}
-        >
-          <ButtonIcon style={styles.buttonTextWarn} as={Trash} />
-          <ButtonText style={styles.buttonTextWarn}>
-            {deletePropertyMutation.isPending
-              ? 'Deleting Property...'
-              : 'Delete Property'}
-          </ButtonText>
-        </Button>
+        <View style={styles.modalFooterActions}>
+          <Button
+            className='rounded-full'
+            style={[styles.buttonWarn, styles.modalFooterButton]}
+            size='lg'
+            onPress={handleDelete}
+            isDisabled={isPropertyMutationPending}
+          >
+            <ButtonIcon style={styles.buttonTextWarn} as={Trash} />
+            <ButtonText style={styles.buttonTextWarn}>
+              {deletePropertyMutation.isPending ? 'Deleting...' : 'Delete'}
+            </ButtonText>
+          </Button>
+          <Button
+            className='rounded-full'
+            style={[styles.button, styles.modalFooterButton]}
+            size='lg'
+            onPress={handleUpdate}
+            isDisabled={isPropertyMutationPending}
+          >
+            <ButtonIcon style={styles.buttonText} as={Save} />
+            <ButtonText style={styles.buttonText}>
+              {updatePropertyMutation.isPending ? 'Saving...' : 'Save'}
+            </ButtonText>
+          </Button>
+        </View>
       </View>
 
       <Modal

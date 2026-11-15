@@ -182,7 +182,7 @@ The local sample data includes these accounts. Each uses the password `password`
 
 ### Optional services
 
-- **Photos:** Set `IMAGEKIT_PRIVATE_KEY` before starting the backend to upload photos and view private cleaning photos. On macOS or Linux, run `export IMAGEKIT_PRIVATE_KEY='your-private-key'` in the same terminal before starting Maven. Keep the key out of Git.
+- **Photos:** Add `IMAGEKIT_PRIVATE_KEY=your-private-key` to `backend/.env` using an unquoted value, or set `IMAGEKIT_PRIVATE_KEY` in the backend process environment. Restart the backend to enable photo uploads and private cleaning photo viewing. Keep the key out of Git.
 - **Email:** The local configuration expects an SMTP server, such as Mailpit, at `localhost:1025`.
 - **Docker and MySQL:** See [backend/README.Docker.md](backend/README.Docker.md). Docker Compose exposes the API on port `8080`, so update the frontend API URL to match when using Docker.
 

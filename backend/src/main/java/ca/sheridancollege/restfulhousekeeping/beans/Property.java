@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -43,8 +44,12 @@ public class Property {
 	private String postalCode;
 	private String country;
 	private String accessInstructions;
-	private String propertyPicturePath;
-	private String propertyPictureFileId;
+	@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+	@JoinColumn(name = "property_photo_id", unique = true)
+	@JsonIgnore
+	@EqualsAndHashCode.Exclude
+	@ToString.Exclude
+	private Photo propertyPhoto;
 
 	@OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true)
 	@JsonIgnore
@@ -64,4 +69,9 @@ public class Property {
 
 	private LocalTime checkoutTime;
 	private LocalTime checkinTime;
+
+	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
+	public String getPropertyPicturePath() {
+		return propertyPhoto == null ? null : propertyPhoto.getImageKitUrl();
+	}
 }

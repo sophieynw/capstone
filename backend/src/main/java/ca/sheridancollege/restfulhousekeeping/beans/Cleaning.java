@@ -67,7 +67,7 @@ public class Cleaning {
 	@EqualsAndHashCode.Exclude
 	@ToString.Exclude
 	@Builder.Default
-	private List<CleaningPhoto> cleaningPhotos = new ArrayList<>();
+	private List<Photo> cleaningPhotos = new ArrayList<>();
 
 	
 	@OneToMany(

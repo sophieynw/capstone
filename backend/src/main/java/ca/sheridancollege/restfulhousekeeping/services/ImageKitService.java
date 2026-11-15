@@ -46,8 +46,8 @@ public class ImageKitService {
         return upload(file.getBytes(), fileName, folder, false);
     }
 
-    public UploadedImage uploadCleaningPhoto(byte[] bytes, String fileName) {
-        return upload(bytes, fileName, CLEANING_PICTURES_FOLDER, true);
+    public UploadedImage uploadCleaningPhoto(byte[] bytes, String fileName, Long propertyId, Long cleaningId) {
+        return upload(bytes, fileName, CLEANING_PICTURES_FOLDER + "/" + propertyId + "/" + cleaningId, true);
     }
 
     private UploadedImage upload(byte[] bytes, String fileName, String folder, boolean privateFile) {

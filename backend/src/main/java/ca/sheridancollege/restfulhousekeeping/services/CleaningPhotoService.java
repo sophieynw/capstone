@@ -1,22 +1,19 @@
 package ca.sheridancollege.restfulhousekeeping.services;
 
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
-import ca.sheridancollege.restfulhousekeeping.beans.CleaningPhoto;
+import ca.sheridancollege.restfulhousekeeping.beans.Photo;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
 import ca.sheridancollege.restfulhousekeeping.models.CleaningPhotoResponse;
-import ca.sheridancollege.restfulhousekeeping.repositories.CleaningPhotoRepository;
+import ca.sheridancollege.restfulhousekeeping.repositories.PhotoRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -32,7 +29,6 @@ import java.util.UUID;
 
 @Service
 @AllArgsConstructor
-@Slf4j
 public class CleaningPhotoService {
 
     private static final int MAX_PHOTOS = 10;
@@ -41,8 +37,9 @@ public class CleaningPhotoService {
     private static final Path LEGACY_UPLOAD_DIR = Path.of("uploads", "photos").toAbsolutePath().normalize();
 
     private final CleaningRepository cleaningRepository;
-    private final CleaningPhotoRepository photoRepository;
+    private final PhotoRepository photoRepository;
     private final ImageKitService imageKitService;
+    private final PhotoService photoService;
 
     @Transactional(readOnly = true)
     public List<CleaningPhotoResponse> list(Long cleaningId, User user) {
@@ -64,17 +61,11 @@ public class CleaningPhotoService {
         MediaType imageType = detectImageType(bytes);
         String extension = MediaType.IMAGE_JPEG.equals(imageType) ? "jpg" : imageType.getSubtype();
         String fileName = UUID.randomUUID() + "." + extension;
-        ImageKitService.UploadedImage uploaded = imageKitService.uploadCleaningPhoto(bytes, fileName);
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                if (status == STATUS_ROLLED_BACK) {
-                    deleteCloudFile(uploaded.fileId());
-                }
-            }
-        });
-        CleaningPhoto photo = photoRepository.save(
-                new CleaningPhoto(cleaning, fileName, imageType.toString(), uploaded.url(), uploaded.fileId()));
+        ImageKitService.UploadedImage uploaded = imageKitService.uploadCleaningPhoto(
+                bytes, fileName, cleaning.getProperty().getId(), cleaningId);
+        photoService.deleteOnRollback(uploaded.fileId());
+        Photo photo = photoRepository.save(
+                new Photo(cleaning, fileName, imageType.toString(), uploaded.url(), uploaded.fileId()));
         return new CleaningPhotoResponse(photo.getId());
     }
 
@@ -87,7 +78,7 @@ public class CleaningPhotoService {
 
     @Transactional(readOnly = true)
     public ImageContent readByFileName(String fileName, User user) throws IOException {
-        CleaningPhoto photo = photoRepository.findFirstByFileName(fileName)
+        Photo photo = photoRepository.findFirstByFileNameAndCleaningIsNotNull(fileName)
                 .orElseThrow(CleaningPhotoService::photoNotFound);
         requireViewer(photo.getCleaning(), user);
         return imageContent(photo);
@@ -95,38 +86,16 @@ public class CleaningPhotoService {
 
     @Transactional
     public void delete(Long photoId, User user) {
-        CleaningPhoto photo = photoRepository.findById(photoId)
+        Photo photo = photoRepository.findByIdAndCleaningIsNotNull(photoId)
                 .orElseThrow(CleaningPhotoService::photoNotFound);
         requireCleaner(photo.getCleaning(), user);
         photoRepository.delete(photo);
-        if (photo.getImageKitFileId() != null) {
-            deleteCloudFilesAfterCommit(List.of(photo.getImageKitFileId()));
-        }
+        photoService.deleteAfterCommit(photo.getImageKitFileId());
     }
 
     public void deleteCloudPhotosAfterCleaningRemoval(List<Long> cleaningIds) {
         if (!cleaningIds.isEmpty()) {
-            deleteCloudFilesAfterCommit(photoRepository.findCloudFileIds(cleaningIds));
-        }
-    }
-
-    private void deleteCloudFilesAfterCommit(List<String> fileIds) {
-        if (fileIds.isEmpty()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                fileIds.forEach(CleaningPhotoService.this::deleteCloudFile);
-            }
-        });
-    }
-
-    private void deleteCloudFile(String fileId) {
-        try {
-            imageKitService.delete(fileId);
-        } catch (RuntimeException ex) {
-            log.warn("Could not delete cleaning photo from ImageKit (file ID {})", fileId, ex);
+            photoRepository.findCloudFileIds(cleaningIds).forEach(photoService::deleteAfterCommit);
         }
     }
 
@@ -157,7 +126,7 @@ public class CleaningPhotoService {
         requireViewer(cleaning, user);
     }
 
-    private ImageContent imageContent(CleaningPhoto photo) throws IOException {
+    private ImageContent imageContent(Photo photo) throws IOException {
         if (photo.getImageKitUrl() != null) {
             byte[] bytes = imageKitService.readCleaningPhoto(photo.getImageKitUrl());
             return new ImageContent(new ByteArrayResource(bytes), MediaType.parseMediaType(photo.getFileType()));

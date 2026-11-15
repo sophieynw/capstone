@@ -8,7 +8,7 @@ import ca.sheridancollege.restfulhousekeeping.models.UpdatePropertyRequest;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
 import ca.sheridancollege.restfulhousekeeping.services.CleaningPhotoService;
-import ca.sheridancollege.restfulhousekeeping.services.ImageKitService;
+import ca.sheridancollege.restfulhousekeeping.services.PhotoService;
 import ca.sheridancollege.restfulhousekeeping.services.PropertyResponseService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.transaction.Transactional;
@@ -30,7 +30,7 @@ public class PropertyController {
 
     private final PropertyRepository propertyRepository;
     private final PropertyResponseService propertyResponseService;
-    private final ImageKitService imageKitService;
+    private final PhotoService photoService;
     private final CleaningRepository cleaningRepository;
     private final CleaningPhotoService cleaningPhotoService;
 
@@ -78,29 +78,7 @@ public class PropertyController {
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal User manager) throws IOException {
 
-        return propertyRepository.findByIdAndManager_Id(id, manager.getId())
-                .map(property -> {
-                    try {
-                        String previousFileId = property.getPropertyPictureFileId();
-                        ImageKitService.UploadedImage uploaded = imageKitService.upload(
-                                file,
-                                "/restful-housekeeping/property-pictures"
-                        );
-
-                        property.setPropertyPicturePath(uploaded.url());
-                        property.setPropertyPictureFileId(uploaded.fileId());
-                        propertyRepository.save(property);
-                        imageKitService.delete(previousFileId);
-
-                        PropertyResponse response = propertyResponseService
-                                .getPropertyById(id, manager.getId())
-                                .orElseThrow();
-                        return ResponseEntity.ok(response);
-                    } catch (IOException exception) {
-                        throw new RuntimeException(exception);
-                    }
-                })
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(photoService.replacePropertyPhoto(id, file, manager));
     }
 
     @DeleteMapping("/{id}")
@@ -112,6 +90,9 @@ public class PropertyController {
                     List<Long> cleaningIds = property.getCleanings().stream().map(Cleaning::getId).sorted().toList();
                     cleaningIds.forEach(cleaningRepository::findByIdForUpdate);
                     cleaningPhotoService.deleteCloudPhotosAfterCleaningRemoval(cleaningIds);
+                    if (property.getPropertyPhoto() != null) {
+                        photoService.deleteAfterCommit(property.getPropertyPhoto().getImageKitFileId());
+                    }
                     propertyRepository.delete(property);
                     return ResponseEntity.noContent().<Void>build();
                 })

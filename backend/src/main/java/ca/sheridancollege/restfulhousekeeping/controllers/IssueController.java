@@ -34,7 +34,7 @@ public class IssueController {
     @GetMapping
     public List<IssueResponse> getForLoggedInManager(@AuthenticationPrincipal User manager) {
         return issueRepository
-                .findByCleaning_Property_Manager_IdOrderByReportedAtDesc(manager.getId())
+                .findByProperty_Manager_IdOrderByReportedAtDesc(manager.getId())
                 .stream()
                 .map(IssueResponse::fromIssue).toList();
     }
@@ -51,11 +51,20 @@ public class IssueController {
 
         Cleaning cleaning = cleaningRepository.findById(request.getCleaningId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cleaning not found"));
+        User participant = switch (principal.getRole()) {
+            case MANAGER -> cleaning.getProperty().getManager();
+            case CLEANER -> cleaning.getCleaner();
+        };
+        if (participant == null || !participant.getId().equals(principal.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only the property's manager and assigned cleaner can report an issue from this cleaning");
+        }
+
         User reporter = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
         Issue issue = Issue.builder()
-                .cleaning(cleaning)
+                .property(cleaning.getProperty())
                 .reportedBy(reporter)
                 .issueType(request.getIssueType().trim())
                 .description(request.getDescription().trim())
@@ -90,11 +99,7 @@ public class IssueController {
     // finds an issue on one of the manager's own properties,
     // otherwise acts like it doesn't exist
     private Issue findOwnIssue(Long id, User manager) {
-        return issueRepository.findById(id)
-                .filter(issue -> issue.getCleaning() != null
-                        && issue.getCleaning().getProperty() != null
-                        && issue.getCleaning().getProperty().getManager() != null
-                        && issue.getCleaning().getProperty().getManager().getId().equals(manager.getId()))
+        return issueRepository.findByIdAndProperty_Manager_Id(id, manager.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found"));
     }
 

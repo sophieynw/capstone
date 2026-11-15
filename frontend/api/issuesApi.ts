@@ -9,13 +9,11 @@ export interface CreateIssuePayload {
 
 export interface Issue {
   id: number;
-  cleaningId: number;
   propertyId: number;
   reportedById: number;
   reportedByName: string;
   issueType: IssueType;
   description: string;
-  cleaningStart: string | null;
   propertyName: string | null;
   reportedAt: string | null;
 }

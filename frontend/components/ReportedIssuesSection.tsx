@@ -27,9 +27,9 @@ export function ReportedIssuesSection({ issues }: ReportedIssuesSectionProps) {
             <Text className='font-semibold'>{issue.issueType}</Text>
             <Text>{issue.description}</Text>
             <Text className='text-sm'>Reported by {issue.reportedByName}</Text>
-            {issue.cleaningStart && (
+            {issue.reportedAt && (
               <Text className='text-sm'>
-                {toFriendlyDate(issue.cleaningStart)}
+                {toFriendlyDate(issue.reportedAt)}
               </Text>
             )}
           </View>

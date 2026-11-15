@@ -1,6 +1,7 @@
 package ca.sheridancollege.restfulhousekeeping.beans;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -24,9 +25,9 @@ public class Issue {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "cleaningId")
-    private Cleaning cleaning;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "propertyId", nullable = false, foreignKey = @ForeignKey(name = "fk_issue_property"))
+    private Property property;
 
     @ManyToOne
     @JoinColumn(name = "reportedById")

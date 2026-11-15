@@ -45,22 +45,15 @@ export default function IssuesScreen() {
           <Card key={issue.id} style={styles.mediumCard}>
             <View className='flex-row items-center gap-3'>
               <View className='flex-1 gap-0.5'>
-                <Heading size='md'>{issue.issueType}</Heading>
+                <Heading>{issue.issueType}</Heading>
                 <Text>{issue.description}</Text>
 
-                {issue.propertyName && (
-                  <Text className='text-sm'>{issue.propertyName}</Text>
-                )}
-                <Text className='text-sm'>
-                  Reported by {issue.reportedByName}
-                </Text>
-                <Text className='text-sm'>
-                  {toFriendlyDate(issue.reportedAt)}
-                </Text>
+                {issue.propertyName && <Text>{issue.propertyName}</Text>}
+                <Text>Reported by {issue.reportedByName}</Text>
+                <Text>{toFriendlyDate(issue.reportedAt)}</Text>
               </View>
 
               <Button
-                size='sm'
                 style={styles.button}
                 disabled={resolveIssueMutation.isPending}
                 accessibilityLabel={`Resolve ${issue.issueType} issue`}

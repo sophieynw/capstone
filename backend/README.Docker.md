@@ -38,6 +38,10 @@ docker compose down
 
 Running `docker compose down --volumes` deletes the local MySQL volume and all of its data.
 
+## Upgrade an existing MySQL database with cleaning-linked issues
+
+If the `issue` table still has a `cleaning_id` column, back up the database and stop the backend before upgrading. Run [the issue migration](migrations/2026-11-15-issues-to-properties.sql) once against that database with the MySQL client. It copies each issue's property from its cleaning before removing the old foreign key. Start the upgraded backend after the migration succeeds. Fresh MySQL databases and the local in-memory H2 database need no migration.
+
 ## Publish the backend image to Docker Hub
 
 Run these commands from this directory and replace the example name with your Docker Hub username and repository:

@@ -11,10 +11,12 @@ import ca.sheridancollege.restfulhousekeeping.services.PhotoService;
 import ca.sheridancollege.restfulhousekeeping.services.UserResponseService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.List;
@@ -62,17 +64,17 @@ public class UserController {
         return ResponseEntity.ok(cleaners);
     }
 
-    @PostMapping
-    public User create(@RequestBody User user) {
-        return userRepository.save(user);
-    }
-
     @PatchMapping("/{id}")
-    public ResponseEntity<UserResponse> update(@PathVariable Long id, @RequestBody UpdateUserRequest updated) {
+    public ResponseEntity<UserResponse> update(
+            @PathVariable Long id,
+            @RequestBody UpdateUserRequest updated,
+            @AuthenticationPrincipal User currentUser) {
+        checkIsSelf(id, currentUser);
+
         return userResponseService.updateUser(id, updated)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
-}
+    }
 
     // upload a profile picture for a user
     @PostMapping(value = "/{id}/profile-picture", consumes = "multipart/form-data")
@@ -97,5 +99,12 @@ public class UserController {
             @AuthenticationPrincipal User manager) {
         userResponseService.removeCleanerFromTeam(id, manager);
         return ResponseEntity.noContent().build();
+    }
+
+    // users can only change their own account
+    private void checkIsSelf(Long id, User currentUser) {
+        if (currentUser == null || !currentUser.getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only change your own account");
+        }
     }
 }

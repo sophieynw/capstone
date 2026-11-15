@@ -61,6 +61,13 @@ public class Property {
 	@Builder.Default
 	private List<Cleaning> cleanings = new ArrayList<>();
 
+	@OneToMany(mappedBy = "property", cascade = CascadeType.REMOVE)
+	@JsonIgnore
+	@EqualsAndHashCode.Exclude
+	@ToString.Exclude
+	@Builder.Default
+	private List<Issue> issues = new ArrayList<>();
+
 	@OneToOne(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true)
 	@JsonIgnore
 	@ToString.Exclude

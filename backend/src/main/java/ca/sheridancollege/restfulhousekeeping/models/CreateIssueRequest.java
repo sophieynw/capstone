@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateIssueRequest {
 
+    // Identifies the reporting context so the server can verify access to the property.
     private Long cleaningId;
     private String issueType;
     private String description;

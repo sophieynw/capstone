@@ -78,6 +78,7 @@ export default function SignUpPage() {
     <ScrollView
       style={styles.modalScreen}
       contentContainerStyle={styles.modalScreenContent}
+      automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps='handled'
     >
       {/* Header */}

@@ -96,6 +96,8 @@ export default function NewPropertyScreen() {
     <ScrollView
       style={styles.modalScreen}
       contentContainerStyle={styles.modalScreenContent}
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps='handled'
     >
       {/* Heading */}
       <View style={styles.modalHeader}>

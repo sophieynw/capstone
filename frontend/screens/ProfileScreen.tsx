@@ -150,7 +150,7 @@ export default function ProfileScreen({ navigation }: any) {
 
       {user?.role === Role.CLEANER && (
         <Card style={styles.mediumCard}>
-          <Heading size='lg'>Cleaner Summary</Heading>
+          <Heading size='lg'>Account Summary</Heading>
           <View className='gap-2'>
             <Text>Assigned Cleanings: {cleanings?.length ?? 0}</Text>
             <Text>Completed Cleanings: {completedCleanings?.length ?? 0}</Text>
@@ -172,7 +172,7 @@ export default function ProfileScreen({ navigation }: any) {
           size='lg'
           variant='outline'
           className='rounded-full'
-          style={styles.button}
+          style={[styles.button, { flex: 1 }]}
           onPress={() => navigation.navigate('ProfileEditScreen')}
         >
           <ButtonIcon style={styles.buttonText} as={UserPen} />
@@ -182,7 +182,7 @@ export default function ProfileScreen({ navigation }: any) {
         <Button
           size='lg'
           className='rounded-full'
-          style={styles.buttonWarn}
+          style={[styles.buttonWarn, { flex: 1 }]}
           onPress={handleLogout}
         >
           <ButtonIcon style={styles.buttonTextWarn} as={LogOut} />

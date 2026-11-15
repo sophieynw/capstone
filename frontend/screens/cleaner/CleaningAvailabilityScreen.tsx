@@ -1,4 +1,12 @@
-import { Alert, Pressable, Platform, ScrollView, View, Text } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  Text,
+} from 'react-native';
 import { Card } from '@/components/ui/card';
 import { styles } from '@/styles/styles';
 import { Heading } from '@/components/ui/heading';
@@ -15,7 +23,6 @@ import {
   CloseIcon,
   Icon,
   TrashIcon,
-  EditIcon,
   ChevronDownIcon,
 } from '@/components/ui/icon';
 import {
@@ -33,8 +40,8 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/modal';
-import { Button, ButtonText } from '@/components/ui/button';
-import { Clock } from 'lucide-react-native';
+import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
+import { Clock, Plus } from 'lucide-react-native';
 import {
   Select,
   SelectTrigger,
@@ -169,9 +176,20 @@ export default function CleaningAvailabilityScreen() {
           <Card
             key={slot.id}
             style={styles.mediumCardWithAvatar}
-            // className='rounded-3xl flex-row items-center justify-between'
           >
-            <View className='gap-1'>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => openEditor(slot)}
+              accessibilityRole='button'
+              accessibilityLabel={`Edit ${toTitleCase(slot.dayOfWeek)} availability, ${formatTime(slot.startTime)} to ${formatTime(slot.endTime)}`}
+            />
+
+            <View
+              className='gap-1'
+              pointerEvents='none'
+              accessibilityElementsHidden
+              importantForAccessibility='no-hide-descendants'
+            >
               <Heading size='md'>
                 {toTitleCase(slot?.dayOfWeek.toString())}
               </Heading>
@@ -180,25 +198,14 @@ export default function CleaningAvailabilityScreen() {
               </Text>
             </View>
 
-            <View className='flex-row items-center gap-4'>
-              <Pressable
-                onPress={() => openEditor(slot)}
-                hitSlop={12}
-                accessibilityRole='button'
-                accessibilityLabel='Edit availability slot'
-              >
-                <Icon as={EditIcon} size='xl' style={styles.buttonText} />
-              </Pressable>
-
-              <Pressable
-                onPress={() => handleDelete(slot)}
-                hitSlop={12}
-                accessibilityRole='button'
-                accessibilityLabel='Delete availability slot'
-              >
-                <Icon as={TrashIcon} size='xl' style={styles.buttonTextWarn} />
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() => handleDelete(slot)}
+              hitSlop={12}
+              accessibilityRole='button'
+              accessibilityLabel='Delete availability slot'
+            >
+              <Icon as={TrashIcon} size='xl' style={styles.buttonTextWarn} />
+            </Pressable>
           </Card>
         ))}
       </View>
@@ -209,6 +216,7 @@ export default function CleaningAvailabilityScreen() {
         size='lg'
         onPress={openCreator}
       >
+        <ButtonIcon style={styles.buttonText} as={Plus} />
         <ButtonText style={styles.buttonText}>Add New Availability</ButtonText>
       </Button>
 
@@ -230,7 +238,10 @@ export default function CleaningAvailabilityScreen() {
             </ModalCloseButton>
           </ModalHeader>
 
-          <ModalBody>
+          <ModalBody
+            automaticallyAdjustKeyboardInsets
+            keyboardShouldPersistTaps='handled'
+          >
             {!editingSlot && (
               <>
                 <Text className='m-2'>Day of Week</Text>

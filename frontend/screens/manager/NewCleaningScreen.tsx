@@ -157,6 +157,8 @@ export default function NewCleaningScreen() {
     <ScrollView
       style={styles.modalScreen}
       contentContainerStyle={styles.modalScreenContent}
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps='handled'
     >
       {/* Header */}
       <View style={styles.modalHeader}>

@@ -357,6 +357,8 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
     <ScrollView
       style={styles.modalScreen}
       contentContainerStyle={styles.modalScreenContent}
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps='handled'
     >
       {/* Header */}
       <View style={styles.modalHeader}>
@@ -654,7 +656,10 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
             </ModalCloseButton>
           </ModalHeader>
 
-          <ModalBody>
+          <ModalBody
+            automaticallyAdjustKeyboardInsets
+            keyboardShouldPersistTaps='handled'
+          >
             <Text className='mb-2'>Issue Type</Text>
 
             <Select

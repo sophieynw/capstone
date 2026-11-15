@@ -38,6 +38,8 @@ export default function ProfileEditScreen() {
     <ScrollView
       style={styles.modalScreen}
       contentContainerStyle={styles.modalScreenContent}
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps='handled'
     >
       <View style={styles.modalHeader}>
         <Heading size='2xl'>Edit Profile</Heading>

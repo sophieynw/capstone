@@ -186,6 +186,8 @@ export default function PropertyDetailsScreen({ route }: any) {
     <ScrollView
       style={styles.modalScreen}
       contentContainerStyle={styles.modalScreenContent}
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps='handled'
     >
       {/* Heading */}
       <View style={styles.modalHeader}>
@@ -320,7 +322,10 @@ export default function PropertyDetailsScreen({ route }: any) {
             </ModalCloseButton>
           </ModalHeader>
 
-          <ModalBody>
+          <ModalBody
+            automaticallyAdjustKeyboardInsets
+            keyboardShouldPersistTaps='handled'
+          >
             <View className='gap-2'>
               <Text>Paste the Airbnb calendar link for this property.</Text>
               <Input className='rounded-2xl'>

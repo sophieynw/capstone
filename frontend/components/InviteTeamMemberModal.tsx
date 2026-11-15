@@ -60,7 +60,10 @@ export function InviteTeamMemberModal({
     <Modal isOpen={isOpen} onClose={close} size='md' useRNModal>
       <ModalBackdrop />
       <ModalContent className='rounded-4xl'>
-        <ModalBody>
+        <ModalBody
+          automaticallyAdjustKeyboardInsets
+          keyboardShouldPersistTaps='handled'
+        >
           <Text className='mb-2'>Team member&apos;s email:</Text>
           <TextInput
             style={styles.input}

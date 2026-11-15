@@ -69,7 +69,6 @@ public class Cleaning {
 	@Builder.Default
 	private List<Photo> cleaningPhotos = new ArrayList<>();
 
-	
 	@OneToMany(
 		    mappedBy = "cleaning",
 		    cascade = CascadeType.ALL,

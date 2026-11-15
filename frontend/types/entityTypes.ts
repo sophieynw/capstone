@@ -72,6 +72,7 @@ export interface CleaningChecklistItem {
 
 export interface CleaningPhoto {
   id: number;
+  uploaderId: number | null;
 }
 
 export interface CleaningNote {

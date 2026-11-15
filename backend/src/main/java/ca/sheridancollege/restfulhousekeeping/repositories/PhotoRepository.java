@@ -11,7 +11,7 @@ import java.util.Optional;
 public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
     @Query("""
-            select new ca.sheridancollege.restfulhousekeeping.models.CleaningPhotoResponse(photo.id)
+            select new ca.sheridancollege.restfulhousekeeping.models.CleaningPhotoResponse(photo.id, photo.uploaderId)
             from Photo photo where photo.cleaning.id = :cleaningId order by photo.id
             """)
     List<CleaningPhotoResponse> listByCleaningId(Long cleaningId);

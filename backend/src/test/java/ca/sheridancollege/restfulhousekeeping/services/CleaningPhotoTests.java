@@ -1,6 +1,7 @@
 package ca.sheridancollege.restfulhousekeeping.services;
 
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
+import ca.sheridancollege.restfulhousekeeping.beans.Photo;
 import ca.sheridancollege.restfulhousekeeping.beans.Property;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
@@ -80,11 +81,13 @@ class CleaningPhotoTests {
 
         mvc.perform(multipart(PHOTOS_PATH, cleaning.getId()).file(photo(PNG)).with(as(cleaner)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isNumber());
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.uploaderId").value(cleaner.getId()));
 
         String list = mvc.perform(get(PHOTOS_PATH, cleaning.getId()).with(as(manager)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].uploaderId").value(cleaner.getId()))
                 .andReturn().getResponse().getContentAsString();
         Number photoId = com.jayway.jsonpath.JsonPath.read(list, "$[0].id");
         assertThat(photos.findById(photoId.longValue())).hasValueSatisfying(photo -> {
@@ -120,6 +123,52 @@ class CleaningPhotoTests {
         mvc.perform(multipart(PHOTOS_PATH, cleaning.getId()).file(photo(new byte[]{1, 2, 3})).with(as(cleaner)))
                 .andExpect(status().isUnsupportedMediaType());
         verifyNoInteractions(imageKit);
+    }
+
+    @Test
+    void onlyTheOriginalUploaderCanDeleteEvenAfterReassignment() throws Exception {
+        Long photoId = photos.save(new Photo(cleaning, cleaner.getId(), "owned.png",
+                "image/png", CLOUD_URL, "owned-cloud-id")).getId();
+        Long legacyId = photos.save(new Photo(cleaning, null, "legacy.png",
+                "image/png", CLOUD_URL, null)).getId();
+        cleaning.setCleaner(unrelatedCleaner);
+        entityManager.flush();
+        entityManager.clear();
+
+        String path = "/photos/{photoId}";
+        mvc.perform(delete(path, photoId).with(as(manager)))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete(path, photoId).with(as(unrelatedCleaner)))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete(path, legacyId).with(as(unrelatedCleaner)))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete(path, photoId).with(as(cleaner)))
+                .andExpect(status().isNoContent());
+
+        entityManager.flush();
+        assertThat(photos.findById(photoId)).isEmpty();
+        assertThat(photos.findById(legacyId)).isPresent();
+    }
+
+    @Test
+    void allowsFiftyPhotosAndRejectsTheNextUpload() throws Exception {
+        long cleaningId = cleaning.getId();
+        for (int i = 0; i < 49; i++) {
+            photos.save(new Photo(cleaning, cleaner.getId(), "photo-" + i + ".png",
+                    "image/png", CLOUD_URL, null));
+        }
+        when(imageKit.uploadCleaningPhoto(eq(PNG), endsWith(".png"), eq(cleaning.getProperty().getId()), eq(cleaningId)))
+                .thenReturn(new ImageKitService.UploadedImage(CLOUD_URL, "last-cloud-id"));
+
+        mvc.perform(multipart(PHOTOS_PATH, cleaningId).file(photo(PNG)).with(as(cleaner)))
+                .andExpect(status().isCreated());
+        mvc.perform(multipart(PHOTOS_PATH, cleaningId).file(photo(PNG)).with(as(cleaner)))
+                .andExpect(status().isConflict());
+        assertThat(photos.countByCleaning_Id(cleaningId)).isEqualTo(50);
+
+        TestTransaction.flagForRollback();
+        TestTransaction.end();
+        verify(imageKit).delete("last-cloud-id");
     }
 
     @Test

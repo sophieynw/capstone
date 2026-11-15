@@ -17,6 +17,7 @@ public class Photo {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cleaningId")
     private Cleaning cleaning;
+    private Long uploaderId;
 
     private String fileName;
     private String fileType;
@@ -30,12 +31,13 @@ public class Photo {
     private byte[] imageData;
 
     public Photo(String fileName, String fileType, String imageKitUrl, String imageKitFileId) {
-        this(null, fileName, fileType, imageKitUrl, imageKitFileId);
+        this(null, null, fileName, fileType, imageKitUrl, imageKitFileId);
     }
 
-    public Photo(Cleaning cleaning, String fileName, String fileType,
-                         String imageKitUrl, String imageKitFileId) {
+    public Photo(Cleaning cleaning, Long uploaderId, String fileName, String fileType,
+                 String imageKitUrl, String imageKitFileId) {
         this.cleaning = cleaning;
+        this.uploaderId = uploaderId;
         this.fileName = fileName;
         this.fileType = fileType;
         this.imageKitUrl = imageKitUrl;

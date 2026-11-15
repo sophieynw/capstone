@@ -13,6 +13,13 @@ export function getCleaningPhotos(cleaningId: number) {
   });
 }
 
+export function deleteCleaningPhoto(photoId: number) {
+  return request<void>({
+    method: 'DELETE',
+    url: `/photos/${photoId}`,
+  });
+}
+
 export function uploadCleaningPhoto(
   cleaningId: number,
   image: ImagePickerAsset,

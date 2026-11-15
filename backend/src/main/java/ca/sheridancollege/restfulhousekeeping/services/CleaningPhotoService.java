@@ -31,7 +31,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CleaningPhotoService {
 
-    private static final int MAX_PHOTOS = 10;
+    private static final int MAX_PHOTOS = 50;
     private static final byte[] JPEG_SIGNATURE = HexFormat.of().parseHex("ffd8ff");
     private static final byte[] PNG_SIGNATURE = HexFormat.of().parseHex("89504e470d0a1a0a");
     private static final Path LEGACY_UPLOAD_DIR = Path.of("uploads", "photos").toAbsolutePath().normalize();
@@ -54,7 +54,8 @@ public class CleaningPhotoService {
         requireCleaner(cleaning, user);
 
         if (photoRepository.countByCleaning_Id(cleaningId) >= MAX_PHOTOS) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "A cleaning can have up to 10 photos");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A cleaning can have up to " + MAX_PHOTOS + " photos");
         }
 
         byte[] bytes = file.getBytes();
@@ -65,8 +66,8 @@ public class CleaningPhotoService {
                 bytes, fileName, cleaning.getProperty().getId(), cleaningId);
         photoService.deleteOnRollback(uploaded.fileId());
         Photo photo = photoRepository.save(
-                new Photo(cleaning, fileName, imageType.toString(), uploaded.url(), uploaded.fileId()));
-        return new CleaningPhotoResponse(photo.getId());
+                new Photo(cleaning, user.getId(), fileName, imageType.toString(), uploaded.url(), uploaded.fileId()));
+        return new CleaningPhotoResponse(photo.getId(), photo.getUploaderId());
     }
 
     @Transactional(readOnly = true)
@@ -88,7 +89,11 @@ public class CleaningPhotoService {
     public void delete(Long photoId, User user) {
         Photo photo = photoRepository.findByIdAndCleaningIsNotNull(photoId)
                 .orElseThrow(CleaningPhotoService::photoNotFound);
-        requireCleaner(photo.getCleaning(), user);
+        if (user == null || user.getRole() != Role.CLEANER
+                || photo.getUploaderId() == null || !photo.getUploaderId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only the original uploader can delete this photo");
+        }
         photoRepository.delete(photo);
         photoService.deleteAfterCommit(photo.getImageKitFileId());
     }

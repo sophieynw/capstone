@@ -1,4 +1,21 @@
-import { Image, Modal, Pressable, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  View,
+  type ImageProps,
+} from 'react-native';
+import {
+  GestureDetector,
+  GestureHandlerRootView,
+  usePinchGesture,
+} from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { ImagePlus, X } from 'lucide-react-native';
 import { Heading } from '@/components/ui/heading';
 import { Text } from '@/components/ui/text';
@@ -10,7 +27,65 @@ import { AuthContext } from '@/auth/AuthContext';
 import { useCleaningPhotos } from '@/hooks/useCleaningPhotos';
 import { pickLibraryPhotos } from '@/utils/photoPicker';
 
-const MAX_PHOTOS = 10;
+const MAX_PHOTOS = 50;
+const MAX_ZOOM = 4;
+
+function ZoomablePhoto({
+  source,
+  onError,
+}: Pick<ImageProps, 'source' | 'onError'>) {
+  const viewport = useSharedValue({ width: 0, height: 0 });
+  const zoom = useSharedValue({ scale: 1, x: 0, y: 0 });
+  const pinchStart = useSharedValue({ scale: 1, x: 0, y: 0, focalX: 0, focalY: 0 });
+
+  const pinch = usePinchGesture({
+    onActivate: ({ focalX, focalY }) => {
+      'worklet';
+      pinchStart.value = { ...zoom.value, focalX, focalY };
+    },
+    onUpdate: ({ scale, focalX, focalY }) => {
+      'worklet';
+      const start = pinchStart.value;
+      const nextScale = Math.min(MAX_ZOOM, Math.max(1, start.scale * scale));
+      const ratio = nextScale / start.scale;
+      const centerX = viewport.value.width / 2;
+      const centerY = viewport.value.height / 2;
+      const x = focalX - centerX - (start.focalX - centerX - start.x) * ratio;
+      const y = focalY - centerY - (start.focalY - centerY - start.y) * ratio;
+      const limitX = centerX * (nextScale - 1);
+      const limitY = centerY * (nextScale - 1);
+      zoom.value = {
+        scale: nextScale,
+        x: Math.min(limitX, Math.max(-limitX, x)),
+        y: Math.min(limitY, Math.max(-limitY, y)),
+      };
+    },
+  });
+
+  const imageStyle = useAnimatedStyle(() => {
+    const { scale, x, y } = zoom.value;
+    return { transform: [{ translateX: x }, { translateY: y }, { scale }] };
+  });
+
+  return (
+    <GestureDetector gesture={pinch}>
+      <View
+        style={{ flex: 1, overflow: 'hidden' }}
+        onLayout={({ nativeEvent: { layout: { width, height } } }) => {
+          viewport.value = { width, height };
+        }}
+      >
+        <Animated.Image
+          source={source}
+          style={[{ flex: 1, width: '100%' }, imageStyle]}
+          resizeMode='contain'
+          accessibilityLabel='Full-screen cleaning photo'
+          onError={onError}
+        />
+      </View>
+    </GestureDetector>
+  );
+}
 
 type PhotosSectionProps = {
   cleaningId: number;
@@ -18,9 +93,9 @@ type PhotosSectionProps = {
 };
 
 export function PhotosSection({ cleaningId, canUpload }: PhotosSectionProps) {
-  const { token } = useContext(AuthContext);
+  const { token, user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
-  const { photos, uploadPhoto } = useCleaningPhotos(cleaningId);
+  const { photos, uploadPhoto, deletePhoto } = useCleaningPhotos(cleaningId);
   const [selectedPhotoId, setSelectedPhotoId] = useState<number>();
   const [imageError, setImageError] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -77,6 +152,24 @@ export function PhotosSection({ cleaningId, canUpload }: PhotosSectionProps) {
     setSelectedPhotoId(undefined);
   }
 
+  function confirmDeletePhoto(photoId: number) {
+    const message = 'Permanently delete this photo?';
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) deletePhoto.mutate(photoId);
+      return;
+    }
+
+    Alert.alert('Delete photo', message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deletePhoto.mutate(photoId),
+      },
+    ]);
+  }
+
   return (
     <View className='gap-3'>
       <Heading size='md'>Photos</Heading>
@@ -95,27 +188,49 @@ export function PhotosSection({ cleaningId, canUpload }: PhotosSectionProps) {
       )}
 
       {savedPhotos.length > 0 && token && (
-        <View className='flex-row flex-wrap gap-3'>
+        <View className='flex-row flex-wrap justify-center gap-3'>
           {savedPhotos.map((photo, index) => (
-            <Pressable
-              key={photo.id}
-              accessibilityRole='button'
-              accessibilityLabel={`Open cleaning photo ${index + 1} full screen`}
-              onPress={() => openPhoto(photo.id)}
-            >
-              <Image
-                source={photoSource(photo.id)}
-                style={{
-                  width: 96,
-                  height: 96,
-                  borderRadius: 12,
-                  backgroundColor: '#e5e7eb',
-                }}
-                resizeMode='cover'
-              />
-            </Pressable>
+            <View key={photo.id}>
+              <Pressable
+                accessibilityRole='button'
+                accessibilityLabel={`Open cleaning photo ${index + 1} full screen`}
+                onPress={() => openPhoto(photo.id)}
+              >
+                <Image
+                  source={photoSource(photo.id)}
+                  style={{
+                    width: 90,
+                    height: 90,
+                    borderRadius: 12,
+                    backgroundColor: '#e5e7eb',
+                  }}
+                  resizeMode='cover'
+                />
+              </Pressable>
+              {canUpload && photo.uploaderId === user?.id && (
+                <Pressable
+                  className='absolute right-1 top-1 h-6 w-6 items-center justify-center rounded-full bg-black/70'
+                  accessibilityRole='button'
+                  accessibilityLabel={`Delete cleaning photo ${index + 1}`}
+                  hitSlop={6}
+                  disabled={deletePhoto.isPending}
+                  onPress={() => confirmDeletePhoto(photo.id)}
+                >
+                  <X color='white' size={14} />
+                </Pressable>
+              )}
+            </View>
           ))}
         </View>
+      )}
+
+      {deletePhoto.isError && (
+        <Text accessibilityLiveRegion='polite'>
+          {getApiErrorMessage(
+            deletePhoto.error,
+            'Could not delete the photo. Try again.',
+          )}
+        </Text>
       )}
 
       {canUpload && photos.isSuccess && remaining > 0 && (
@@ -143,7 +258,7 @@ export function PhotosSection({ cleaningId, canUpload }: PhotosSectionProps) {
         animationType='fade'
         onRequestClose={closePhoto}
       >
-        <View
+        <GestureHandlerRootView
           style={{
             flex: 1,
             backgroundColor: 'black',
@@ -165,16 +280,14 @@ export function PhotosSection({ cleaningId, canUpload }: PhotosSectionProps) {
             </Text>
           ) : (
             selectedPhotoId !== undefined && (
-              <Image
+              <ZoomablePhoto
+                key={selectedPhotoId}
                 source={photoSource(selectedPhotoId)}
-                style={{ flex: 1, width: '100%' }}
-                resizeMode='contain'
-                accessibilityLabel='Full-screen cleaning photo'
                 onError={() => setImageError(true)}
               />
             )
           )}
-        </View>
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );

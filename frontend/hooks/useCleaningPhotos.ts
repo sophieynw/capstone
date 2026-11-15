@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import {
+  deleteCleaningPhoto,
   getCleaningPhotos,
   uploadCleaningPhoto,
 } from '@/api/cleaningPhotosApi';
@@ -31,5 +32,15 @@ export function useCleaningPhotos(cleaningId: number) {
     },
   });
 
-  return { photos, uploadPhoto };
+  const deletePhoto = useMutation({
+    mutationFn: deleteCleaningPhoto,
+    onSuccess: async (_, photoId) => {
+      await queryClient.cancelQueries({ queryKey, exact: true });
+      queryClient.setQueryData<CleaningPhoto[]>(queryKey, (current) =>
+        current?.filter((photo) => photo.id !== photoId),
+      );
+    },
+  });
+
+  return { photos, uploadPhoto, deletePhoto };
 }

@@ -46,7 +46,7 @@ export function CleanerChecklistSection({
                 accessibilityLabel={item.description}
               >
                 <Icon as={isComplete ? CircleCheck : Circle} />
-                <Text>{item.description}</Text>
+                <Text className='flex-1'>{item.description}</Text>
               </Pressable>
             );
           })

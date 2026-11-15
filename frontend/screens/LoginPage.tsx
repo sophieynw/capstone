@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, TextInput, Pressable, Alert } from 'react-native';
+import { Text, View, TextInput, Pressable, Alert, ScrollView } from 'react-native';
 import '../global.css';
 import { styles } from '@/styles/styles';
 import { Image } from 'react-native';
@@ -34,15 +34,19 @@ export default function LoginPage({ navigation }: any) {
   };
 
   return (
-    <View
-      style={[
-        styles.screen,
-        styles.vStack,
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
         styles.centerContainer,
         styles.screenContent,
+        { flexGrow: 1 },
       ]}
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps='handled'
     >
-      <Heading size='2xl'>RESTful Housekeeping</Heading>
+      <Heading className='text-center' size='2xl'>
+        RESTful Housekeeping
+      </Heading>
       <Text>Cleaning Accountability Made Simple</Text>
 
       <Image
@@ -91,6 +95,6 @@ export default function LoginPage({ navigation }: any) {
       </View>
 
       <StatusBar style='auto' />
-    </View>
+    </ScrollView>
   );
 }

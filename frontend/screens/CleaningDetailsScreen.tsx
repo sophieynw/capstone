@@ -361,40 +361,13 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
       {/* Header */}
       <View style={styles.modalHeader}>
         <Heading size='2xl'>Cleaning Details</Heading>
-
-        {user?.role === Role.MANAGER && !cleaning.isComplete ? (
-          <Button
-            className='rounded-full'
-            style={[styles.buttonWarn, styles.modalHeaderButton]}
-            size='lg'
-            onPress={handleDeleteCleaning}
-            isDisabled={deleteCleaningMutation.isPending}
-          >
-            <ButtonIcon style={styles.buttonTextWarn} as={Trash} />
-
-            <ButtonText style={styles.buttonTextWarn}>
-              {deleteCleaningMutation.isPending ? 'Deleting...' : 'Delete'}
-            </ButtonText>
-          </Button>
-        ) : user?.role !== Role.MANAGER ? (
-          <Button
-            className='rounded-full'
-            style={[styles.button, styles.modalHeaderButton]}
-            size='lg'
-            onPress={handleCompleteCleaning}
-            isDisabled={
-              completeCleaningMutation.isPending ||
-              updateChecklistItemsMutation.isPending ||
-              cleaning.isComplete
-            }
-          >
-            <ButtonIcon style={styles.buttonText} as={SquareCheckBig} />
-
-            <ButtonText style={styles.buttonText}>
-              {completeCleaningMutation.isPending ? 'Completing...' : 'Done'}
-            </ButtonText>
-          </Button>
-        ) : null}
+        <Icon
+          as={cleaning?.isComplete ? CircleCheckBig : LoaderCircle}
+          size='2xl'
+          className={
+            cleaning?.isComplete ? 'text-success-shadow' : 'text-neutral-shadow'
+          }
+        />
       </View>
 
       {/* Content */}
@@ -403,15 +376,6 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
         <Card style={styles.mediumCard}>
           <View className='flex-row items-center justify-between'>
             <Heading size='md'>Cleaning Info</Heading>
-            <Icon
-              as={cleaning?.isComplete ? CircleCheckBig : LoaderCircle}
-              size='lg'
-              className={
-                cleaning?.isComplete
-                  ? 'text-success-shadow'
-                  : 'text-neutral-shadow'
-              }
-            />
           </View>
 
           <View className='gap-2'>
@@ -444,7 +408,10 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
                 onEndDateChange={(date) =>
                   handleScheduleChange(startDateSelected, date)
                 }
-                disabled={updateScheduleMutation.isPending || updateCleanerMutation.isPending}
+                disabled={
+                  updateScheduleMutation.isPending ||
+                  updateCleanerMutation.isPending
+                }
               />
             ) : (
               <>
@@ -455,24 +422,36 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
 
             {user?.role == Role.MANAGER && (
               <View className='flex-row items-center gap-2'>
-                <Text className='w-24'>Cleaner:</Text>
+                <Text className='w-24 shrink-0'>Cleaner:</Text>
 
                 {cleaning.isComplete ? (
                   <Text>{selectedCleanerLabel ?? 'Unassigned'}</Text>
                 ) : (
                   <Select
+                    className='min-w-0 flex-1'
                     selectedValue={cleanerSelected}
                     onValueChange={handleCleanerChange}
                     isDisabled={
-                      updateCleanerMutation.isPending || updateScheduleMutation.isPending
+                      updateCleanerMutation.isPending ||
+                      updateScheduleMutation.isPending
                     }
                     onOpen={() => {
                       if (user.organization) void refetchCleaners();
                     }}
                   >
-                    <SelectTrigger size='md' variant='rounded'>
-                      <SelectInput value={selectedCleanerLabel} />
-                      <SelectIcon className='mr-3' as={ChevronDown} />
+                    <SelectTrigger
+                      size='md'
+                      variant='rounded'
+                      accessibilityLabel={`Cleaner: ${selectedCleanerLabel}`}
+                    >
+                      <Text
+                        className='min-w-0 flex-1 px-4 text-foreground/90'
+                        numberOfLines={1}
+                        ellipsizeMode='tail'
+                      >
+                        {selectedCleanerLabel}
+                      </Text>
+                      <SelectIcon className='mr-3 shrink-0' as={ChevronDown} />
                     </SelectTrigger>
 
                     <SelectPortal useRNModal>
@@ -518,22 +497,20 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
         {/* Property Info Card */}
         <Card style={styles.mediumCard}>
           <Heading size='md'>Property Info</Heading>
-
-          <View className='gap-1'>
+          <View className='gap-2'>
             <Text>{property?.name}</Text>
-
             <Text>
               {property?.unit ? `${property?.unit}-` : ''}
               {property?.street}, {property?.city}
             </Text>
-
             <Text>{property?.accessInstructions}</Text>
           </View>
         </Card>
 
-        {cleaning.notes?.trim() && (
+        {/* Additional Info Card */}
+        {user?.role === Role.MANAGER && cleaning.notes?.trim() && (
           <Card style={styles.mediumCard}>
-            <Heading size='md'>Additional Information</Heading>
+            <Heading size='md'>Additional Info</Heading>
             <Text>{cleaning.notes}</Text>
           </Card>
         )}
@@ -564,6 +541,7 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
           )}
         </Card>
 
+        {/* Cleaning Notes */}
         {cleaningNotes.isLoading && <Text>Loading notes...</Text>}
         {cleaningNotes.isError && (
           <Text>Unable to load notes. Reopen this screen to try again.</Text>
@@ -573,8 +551,11 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
             (a, b) =>
               Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id - b.id,
           )
-          .map((note) => <NoteCard key={note.id} note={note} />)}
+          .map((note) => (
+            <NoteCard key={note.id} note={note} />
+          ))}
 
+        {/* Create Note Card */}
         <Card style={styles.mediumCard}>
           <NotesSection
             notes={notes}
@@ -584,35 +565,76 @@ export default function CleaningDetailsScreen({ route, navigation }: any) {
           />
         </Card>
 
+        {/* Photos Card */}
         <Card style={styles.mediumCard}>
           <PhotosSection
             key={cleaning.id}
             cleaningId={cleaning.id}
-            canUpload={user?.role === Role.CLEANER && user.id === cleaning.cleanerId}
+            canUpload={
+              user?.role === Role.CLEANER && user.id === cleaning.cleanerId
+            }
           />
         </Card>
+
+        {/* Action Buttons */}
+        {user?.role === Role.MANAGER && !cleaning.isComplete ? (
+          <Button
+            className='rounded-full'
+            style={styles.buttonWarn}
+            size='lg'
+            onPress={handleDeleteCleaning}
+            isDisabled={deleteCleaningMutation.isPending}
+          >
+            <ButtonIcon style={styles.buttonTextWarn} as={Trash} />
+
+            <ButtonText style={styles.buttonTextWarn}>
+              {deleteCleaningMutation.isPending ? 'Deleting...' : 'Delete'}
+            </ButtonText>
+          </Button>
+        ) : user?.role !== Role.MANAGER ? (
+          <View style={styles.modalFooterActions}>
+            {user?.role === Role.CLEANER && (
+              <Button
+                size='lg'
+                variant='outline'
+                className='rounded-full'
+                style={[styles.buttonWarn, styles.modalFooterButton]}
+                onPress={() => setShowIssueModal(true)}
+              >
+                <ButtonIcon
+                  className='text-red-500'
+                  style={styles.buttonTextWarn}
+                  as={CircleAlert}
+                />
+
+                <ButtonText
+                  className='text-red-500'
+                  style={styles.buttonTextWarn}
+                >
+                  Report Issue
+                </ButtonText>
+              </Button>
+            )}
+            <Button
+              className='rounded-full'
+              style={[styles.button, styles.modalFooterButton]}
+              size='lg'
+              onPress={handleCompleteCleaning}
+              isDisabled={
+                completeCleaningMutation.isPending ||
+                updateChecklistItemsMutation.isPending ||
+                cleaning.isComplete
+              }
+            >
+              <ButtonIcon style={styles.buttonText} as={SquareCheckBig} />
+
+              <ButtonText style={styles.buttonText}>
+                {completeCleaningMutation.isPending ? 'Completing...' : 'Done'}
+              </ButtonText>
+            </Button>
+          </View>
+        ) : null}
       </View>
-
-      {/* Report Issue Button */}
-      {user?.role == Role.CLEANER && (
-        <Button
-          size='lg'
-          variant='outline'
-          className='rounded-full'
-          style={styles.buttonWarn}
-          onPress={() => setShowIssueModal(true)}
-        >
-          <ButtonIcon
-            className='text-red-500'
-            style={styles.buttonTextWarn}
-            as={CircleAlert}
-          />
-
-          <ButtonText className='text-red-500' style={styles.buttonTextWarn}>
-            Report an Issue
-          </ButtonText>
-        </Button>
-      )}
 
       {/* Report Issue Modal */}
       <Modal

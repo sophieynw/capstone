@@ -7,7 +7,7 @@ import ca.sheridancollege.restfulhousekeeping.models.UpdateUserRequest;
 import ca.sheridancollege.restfulhousekeeping.models.UserResponse;
 import ca.sheridancollege.restfulhousekeeping.repositories.SlotRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.UserRepository;
-import ca.sheridancollege.restfulhousekeeping.services.ImageKitService;
+import ca.sheridancollege.restfulhousekeeping.services.PhotoService;
 import ca.sheridancollege.restfulhousekeeping.services.UserResponseService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.AllArgsConstructor;
@@ -31,7 +31,7 @@ public class UserController {
     private final UserRepository userRepository;
     private final SlotRepository slotRepository;
     private final UserResponseService userResponseService;
-    private final ImageKitService imageKitService;
+    private final PhotoService photoService;
 
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getById(@PathVariable Long id) {
@@ -81,30 +81,8 @@ public class UserController {
     public ResponseEntity<UserResponse> uploadProfilePicture(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file,
-            @AuthenticationPrincipal User currentUser) throws IOException {
-        checkIsSelf(id, currentUser);
-
-        // only allow images
-        String contentType = file.getContentType();
-        if (file.isEmpty() || contentType == null || !contentType.startsWith("image/")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only image files can be uploaded");
-        }
-
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        String previousFileId = user.getProfilePictureFileId();
-        ImageKitService.UploadedImage uploaded = imageKitService.upload(
-                file,
-                "/restful-housekeeping/profile-pictures"
-        );
-
-        user.setProfilePicturePath(uploaded.url());
-        user.setProfilePictureFileId(uploaded.fileId());
-        userRepository.save(user);
-        imageKitService.delete(previousFileId);
-
-        return ResponseEntity.ok(UserResponse.fromUser(user));
+            @AuthenticationPrincipal User requester) throws IOException {
+        return ResponseEntity.ok(photoService.replaceProfilePhoto(id, file, requester));
     }
 
     // get profile picture path for a user

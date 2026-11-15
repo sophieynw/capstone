@@ -41,9 +41,17 @@ export default function ProfileEditScreen() {
     >
       <View style={styles.modalHeader}>
         <Heading size='2xl'>Edit Profile</Heading>
+      </View>
+
+      <View style={styles.modalMain}>
+        <ProfileEditingSection
+          user={profileForm}
+          onProfileChange={setProfileForm}
+        />
+
         <Button
           className='rounded-full'
-          style={[styles.button, styles.modalHeaderButton]}
+          style={styles.button}
           size='lg'
           onPress={handleUpdate}
         >
@@ -52,13 +60,6 @@ export default function ProfileEditScreen() {
             {updateUserMutation.isPending ? 'Saving...' : 'Save'}
           </ButtonText>
         </Button>
-      </View>
-
-      <View style={styles.modalMain}>
-        <ProfileEditingSection
-          user={profileForm}
-          onProfileChange={setProfileForm}
-        />
       </View>
     </ScrollView>
   );

@@ -6,10 +6,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "photo")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class CleaningPhoto {
+public class Photo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,7 +29,11 @@ public class CleaningPhoto {
     @Lob
     private byte[] imageData;
 
-    public CleaningPhoto(Cleaning cleaning, String fileName, String fileType,
+    public Photo(String fileName, String fileType, String imageKitUrl, String imageKitFileId) {
+        this(null, fileName, fileType, imageKitUrl, imageKitFileId);
+    }
+
+    public Photo(Cleaning cleaning, String fileName, String fileType,
                          String imageKitUrl, String imageKitFileId) {
         this.cleaning = cleaning;
         this.fileName = fileName;

@@ -16,17 +16,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import ca.sheridancollege.restfulhousekeeping.beans.Availability;
 import ca.sheridancollege.restfulhousekeeping.beans.AvailabilitySlot;
 import ca.sheridancollege.restfulhousekeeping.beans.ChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
 import ca.sheridancollege.restfulhousekeeping.beans.CleaningChecklistItem;
 import ca.sheridancollege.restfulhousekeeping.beans.DayOfWeek;
 import ca.sheridancollege.restfulhousekeeping.beans.Organization;
+import ca.sheridancollege.restfulhousekeeping.beans.Photo;
 import ca.sheridancollege.restfulhousekeeping.beans.Property;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
-import ca.sheridancollege.restfulhousekeeping.repositories.AvailabilityRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.ChecklistItemRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.OrganizationRepository;
@@ -44,19 +43,14 @@ public class BootstrapData implements CommandLineRunner {
 	private final UserRepository userRepository;
 	private final PropertyRepository propertyRepository;
 	private final CleaningRepository cleaningRepository;
-	private final AvailabilityRepository availabilityRepository;
 	private final ChecklistItemRepository checklistItemRepository;
 	private final SlotRepository slotRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final RecurringChecklistService recurringChecklistService;
 
 	private void seedAvailability(User cleaner, DayOfWeek... days) {
-		Availability availability = availabilityRepository.save(Availability.builder()
-				.cleaner(cleaner)
-				.build());
 		for (DayOfWeek day : days) {
 			slotRepository.save(AvailabilitySlot.builder()
-					.availability(availability)
 					.cleaner(cleaner)
 					.dayOfWeek(day)
 					.startTime(LocalTime.of(9, 0))
@@ -101,7 +95,7 @@ public class BootstrapData implements CommandLineRunner {
 				.email("sophie@test.com")
 				.password(passwordEncoder.encode("password"))
 				.phoneNumber("6471231234")
-				.profilePicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/sophie.jpg")
+				.profilePhoto(new Photo(null, null, "https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/sophie.jpg", null))
 				.role(Role.MANAGER)
 				.build();
 		User cleaner1 = User.builder()
@@ -112,7 +106,7 @@ public class BootstrapData implements CommandLineRunner {
 				.email("robert@test.com")
 				.password(passwordEncoder.encode("password"))
 				.phoneNumber("9056083833")
-				.profilePicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/robert.webp?updatedAt=1793860310886")
+				.profilePhoto(new Photo(null, null, "https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/robert.webp?updatedAt=1793860310886", null))
 				.role(Role.CLEANER)
 				.build();
 		User cleaner2 = User.builder()
@@ -123,7 +117,7 @@ public class BootstrapData implements CommandLineRunner {
 				.email("katie@test.com")
 				.password(passwordEncoder.encode("password"))
 				.phoneNumber("2260001234")
-				.profilePicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/katie.jpg")
+				.profilePhoto(new Photo(null, null, "https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/profile-pictures/katie.jpg", null))
 				.role(Role.CLEANER)
 				.build();
 		User cleaner3 = User.builder()
@@ -158,7 +152,7 @@ public class BootstrapData implements CommandLineRunner {
 		Property property1 = Property.builder()
 				.manager(manager1)
 			    .name("Lakeshore Studio")
-			    .propertyPicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/lakeshore.jpg")
+			    .propertyPhoto(new Photo(null, null, "https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/lakeshore.jpg", null))
 			    .street("2531 Lakeshore Blvd.")
 			    .unit("G9")
 			    .city("Etobicoke")
@@ -170,7 +164,7 @@ public class BootstrapData implements CommandLineRunner {
 		Property property2 = Property.builder()
 				.manager(manager1)
 			    .name("Union 1BR Condo")
-			    .propertyPicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/union.jpg")
+			    .propertyPhoto(new Photo(null, null, "https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/union.jpg", null))
 			    .street("101 Union St.")
 			    .unit("292")
 			    .city("Oakville")
@@ -184,7 +178,7 @@ public class BootstrapData implements CommandLineRunner {
 		Property property3 = Property.builder()
 				.manager(manager1)
 			    .name("Maple 5BR House")
-			    .propertyPicturePath("https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/maple.webp")
+			    .propertyPhoto(new Photo(null, null, "https://ik.imagekit.io/restfulhousekeeping/restful-housekeeping/property-pictures/maple.webp", null))
 			    .street("47 Maple Ridge Drive")
 			    .city("Burlington")
 			    .province("Ontario")

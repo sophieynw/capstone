@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 @Entity
-@Table(name = "cleaning_note")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CleaningNote {

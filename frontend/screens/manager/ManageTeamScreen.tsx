@@ -135,16 +135,6 @@ export default function ManageTeamScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.modalHeader}>
         <Heading size='2xl'>My Cleaning Team</Heading>
-
-        <Button
-          className='rounded-full'
-          style={[styles.button, styles.modalHeaderButton]}
-          size='lg'
-          onPress={() => setShowInviteModal(true)}
-        >
-          <ButtonIcon style={styles.buttonText} as={MailIcon} />
-          <ButtonText style={styles.buttonText}>Invite</ButtonText>
-        </Button>
       </View>
 
       {/* Content / Cleaner Cards */}
@@ -182,6 +172,16 @@ export default function ManageTeamScreen({ navigation }: any) {
         ) : (
           <Text className='text-center text-gray-500'>No cleaners found.</Text>
         )}
+
+        <Button
+          className='rounded-full'
+          style={styles.button}
+          size='lg'
+          onPress={() => setShowInviteModal(true)}
+        >
+          <ButtonIcon style={styles.buttonText} as={MailIcon} />
+          <ButtonText style={styles.buttonText}>Invite</ButtonText>
+        </Button>
       </View>
 
       <InviteTeamMemberModal

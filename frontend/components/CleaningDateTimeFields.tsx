@@ -24,41 +24,39 @@ export function CleaningDateTimeFields({
   disabled = false,
 }: CleaningDateTimeFieldsProps) {
   return (
-    <View className='flex-col items-start gap-2'>
-      <View className='w-full flex-row items-center justify-start gap-2'>
-        <Text className='w-24'>Starts:</Text>
+    <View className='gap-2'>
+      <View className='flex-row items-center gap-2'>
+        <Text className='w-24 shrink-0'>Starts:</Text>
         <DateTimePicker
-          className={disabled ? 'opacity-50' : undefined}
+          className={`min-w-0 flex-1 ${disabled ? 'opacity-50' : ''}`}
           value={startDate}
           onChange={(date) => date && onStartDateChange(date)}
           mode='datetime'
           placeholder='Select date and time'
-          format='YYYY-MM-DD hh:mm A'
           is24Hour={false}
           disabled={disabled}
         >
           <DateTimePickerTrigger variant='rounded'>
-            <DateTimePickerInput />
-            <DateTimePickerIcon as={Calendar} className='mr-3' />
+            <DateTimePickerInput className='min-w-0 flex-1' />
+            <DateTimePickerIcon as={Calendar} className='mr-3 shrink-0' />
           </DateTimePickerTrigger>
         </DateTimePicker>
       </View>
 
-      <View className='w-full flex-row items-center justify-start gap-2'>
-        <Text className='w-24'>Ends:</Text>
+      <View className='flex-row items-center gap-2'>
+        <Text className='w-24 shrink-0'>Ends:</Text>
         <DateTimePicker
-          className={disabled ? 'opacity-50' : undefined}
+          className={`min-w-0 flex-1 ${disabled ? 'opacity-50' : ''}`}
           value={endDate}
           onChange={(date) => date && onEndDateChange(date)}
           mode='datetime'
           placeholder='Select date and time'
-          format='YYYY-MM-DD hh:mm A'
           is24Hour={false}
           disabled={disabled}
         >
           <DateTimePickerTrigger variant='rounded'>
-            <DateTimePickerInput />
-            <DateTimePickerIcon as={Calendar} className='mr-3' />
+            <DateTimePickerInput className='min-w-0 flex-1' />
+            <DateTimePickerIcon as={Calendar} className='mr-3 shrink-0' />
           </DateTimePickerTrigger>
         </DateTimePicker>
       </View>

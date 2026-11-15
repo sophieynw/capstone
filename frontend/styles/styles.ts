@@ -44,13 +44,13 @@ export const styles = StyleSheet.create({
     width: '100%',
     padding: 8,
   },
-  modalHeaderActions: {
+  modalFooterActions: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
   },
-  modalHeaderButton: {
-    marginTop: 0,
+  modalFooterButton: {
+    flex: 1,
+    paddingHorizontal: 12,
   },
   modalMain: {
     flexDirection: 'column',

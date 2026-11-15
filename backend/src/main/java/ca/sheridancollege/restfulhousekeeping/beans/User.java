@@ -3,11 +3,17 @@ package ca.sheridancollege.restfulhousekeeping.beans;
 import java.util.Collection;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -17,6 +23,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -45,8 +52,12 @@ public class User implements UserDetails {
 	private String email;
 	private String password;
 	private String phoneNumber;
-	private String profilePicturePath;
-	private String profilePictureFileId;
+	@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+	@JoinColumn(name = "profile_photo_id", unique = true)
+	@JsonIgnore
+	@EqualsAndHashCode.Exclude
+	@ToString.Exclude
+	private Photo profilePhoto;
 	
 	@Enumerated(EnumType.STRING)
 	@NonNull
@@ -66,4 +77,9 @@ public class User implements UserDetails {
 		return username;
 	}
 	
+
+	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
+	public String getProfilePicturePath() {
+		return profilePhoto == null ? null : profilePhoto.getImageKitUrl();
+	}
 }

@@ -100,18 +100,6 @@ export default function NewPropertyScreen() {
       {/* Heading */}
       <View style={styles.modalHeader}>
         <Heading size='2xl'>Add Property</Heading>
-        <Button
-          className='rounded-full'
-          style={[styles.button, styles.modalHeaderButton]}
-          size='lg'
-          onPress={handleSubmit}
-          isDisabled={createPropertyMutation.isPending}
-        >
-          <ButtonIcon style={styles.buttonText} as={Save} />
-          <ButtonText style={styles.buttonText}>
-            {createPropertyMutation.isPending ? 'Saving...' : 'Save'}
-          </ButtonText>
-        </Button>
       </View>
 
       {/* Content */}
@@ -127,6 +115,19 @@ export default function NewPropertyScreen() {
           items={checklistItems}
           onItemsChange={setChecklistItems}
         />
+
+        <Button
+          className='rounded-full'
+          style={styles.button}
+          size='lg'
+          onPress={handleSubmit}
+          isDisabled={createPropertyMutation.isPending}
+        >
+          <ButtonIcon style={styles.buttonText} as={Save} />
+          <ButtonText style={styles.buttonText}>
+            {createPropertyMutation.isPending ? 'Saving...' : 'Save'}
+          </ButtonText>
+        </Button>
       </View>
     </ScrollView>
   );

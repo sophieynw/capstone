@@ -4,10 +4,11 @@ import ca.sheridancollege.restfulhousekeeping.beans.Cleaning;
 import ca.sheridancollege.restfulhousekeeping.beans.Property;
 import ca.sheridancollege.restfulhousekeeping.beans.Role;
 import ca.sheridancollege.restfulhousekeeping.beans.User;
-import ca.sheridancollege.restfulhousekeeping.repositories.CleaningPhotoRepository;
+import ca.sheridancollege.restfulhousekeeping.repositories.PhotoRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.CleaningRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.PropertyRepository;
 import ca.sheridancollege.restfulhousekeeping.repositories.UserRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,12 +26,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.endsWith;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -48,10 +51,11 @@ class CleaningPhotoTests {
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=");
 
     @Autowired MockMvc mvc;
+    @Autowired EntityManager entityManager;
     @Autowired CleaningRepository cleanings;
     @Autowired PropertyRepository properties;
     @Autowired UserRepository users;
-    @Autowired CleaningPhotoRepository photos;
+    @Autowired PhotoRepository photos;
     @MockitoBean ImageKitService imageKit;
 
     private User manager;
@@ -70,7 +74,7 @@ class CleaningPhotoTests {
 
     @Test
     void assignedCleanerUploadsAndBothParticipantsCanReadThePhoto() throws Exception {
-        when(imageKit.uploadCleaningPhoto(eq(PNG), endsWith(".png")))
+        when(imageKit.uploadCleaningPhoto(eq(PNG), endsWith(".png"), eq(cleaning.getProperty().getId()), eq(cleaning.getId())))
                 .thenReturn(new ImageKitService.UploadedImage(CLOUD_URL, "cloud-id"));
         when(imageKit.readCleaningPhoto(CLOUD_URL)).thenReturn(PNG);
 
@@ -116,6 +120,55 @@ class CleaningPhotoTests {
         mvc.perform(multipart(PHOTOS_PATH, cleaning.getId()).file(photo(new byte[]{1, 2, 3})).with(as(cleaner)))
                 .andExpect(status().isUnsupportedMediaType());
         verifyNoInteractions(imageKit);
+    }
+
+    @Test
+    void profileAndPropertyUploadsReplaceTheirPhotoRowsAndKeepTheExistingResponseFields() throws Exception {
+        Long userId = cleaner.getId();
+        Long propertyId = cleaning.getProperty().getId();
+        String profileFolder = "/restful-housekeeping/profile-pictures/" + userId;
+        String propertyFolder = "/restful-housekeeping/property-pictures/" + manager.getId() + "/" + propertyId;
+        String profilePath = "/cleaners/{id}/profile-picture";
+        String propertyPath = "/properties/{id}/picture";
+
+        when(imageKit.upload(any(), eq(profileFolder)))
+                .thenReturn(new ImageKitService.UploadedImage(CLOUD_URL + "?profile=1", "old-profile"),
+                        new ImageKitService.UploadedImage(CLOUD_URL + "?profile=2", "new-profile"));
+        when(imageKit.upload(any(), eq(propertyFolder)))
+                .thenReturn(new ImageKitService.UploadedImage(CLOUD_URL + "?property=1", "old-property"),
+                        new ImageKitService.UploadedImage(CLOUD_URL + "?property=2", "new-property"));
+
+        mvc.perform(multipart(profilePath, userId).file(photo(PNG)).with(as(unrelatedCleaner)))
+                .andExpect(status().isForbidden());
+        mvc.perform(multipart(profilePath, userId).file(photo(PNG)).with(as(cleaner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profilePicturePath").value(CLOUD_URL + "?profile=1"));
+        mvc.perform(multipart(propertyPath, propertyId).file(photo(PNG)).with(as(manager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.propertyPicturePath").value(CLOUD_URL + "?property=1"));
+
+        entityManager.flush();
+        Long oldProfileId = users.findById(userId).orElseThrow().getProfilePhoto().getId();
+        Long oldPropertyId = properties.findById(propertyId).orElseThrow().getPropertyPhoto().getId();
+        mvc.perform(delete("/photos/{photoId}", oldProfileId).with(as(cleaner)))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(multipart(profilePath, userId).file(photo(PNG)).with(as(cleaner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profilePicturePath").value(CLOUD_URL + "?profile=2"));
+        mvc.perform(multipart(propertyPath, propertyId).file(photo(PNG)).with(as(manager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.propertyPicturePath").value(CLOUD_URL + "?property=2"));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(photos.findById(oldProfileId)).isEmpty();
+        assertThat(photos.findById(oldPropertyId)).isEmpty();
+        mvc.perform(get(profilePath, userId).with(as(cleaner)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(CLOUD_URL + "?profile=2"));
+        assertThat(properties.findById(propertyId).orElseThrow().getPropertyPhoto().getImageKitFileId())
+                .isEqualTo("new-property");
     }
 
     private User saveUser(String username, Role role) {

@@ -21,9 +21,11 @@ import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorState } from '@/components/ErrorState';
+import { UserAvatar } from '@/components/UserAvatar';
 
 type ChatScreenRouteParams = {
   conversationId: number;
+  otherUserId?: number;
   otherUserName: string;
 };
 
@@ -77,7 +79,7 @@ function formatMessageTime(sentAt: string): string {
 }
 
 export default function ChatScreen({ navigation, route }: ChatScreenProps) {
-  const { conversationId, otherUserName } = route.params;
+  const { conversationId, otherUserId, otherUserName } = route.params;
   const { user } = useContext(AuthContext);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -197,6 +199,18 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
   function renderMessage({ item }: { item: ChatMessage }) {
     const isMyMessage = item.senderId === user?.id;
 
+    // profile pic of whoever sent this message
+    const senderAvatar = (
+      <UserAvatar
+        userId={item.senderId}
+        name={item.senderName}
+        className='h-8 w-8'
+        style={
+          isMyMessage ? chatStyles.myMessageAvatar : chatStyles.otherMessageAvatar
+        }
+      />
+    );
+
     return (
       <View
         style={[
@@ -204,6 +218,9 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
           isMyMessage ? chatStyles.myMessageRow : chatStyles.otherMessageRow,
         ]}
       >
+        {/* their pic goes on the left of their message */}
+        {!isMyMessage && senderAvatar}
+
         <View
           style={[
             chatStyles.messageBubble,
@@ -234,6 +251,9 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
             {formatMessageTime(item.sentAt)}
           </Text>
         </View>
+
+        {/* your own pic goes on the right of your message */}
+        {isMyMessage && senderAvatar}
       </View>
     );
   }
@@ -258,18 +278,27 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
           </Pressable>
 
           <View style={chatStyles.headerText}>
-            <Heading size='lg'>{otherUserName}</Heading>
+            {/* their profile pic next to their name */}
+            <UserAvatar
+              userId={otherUserId}
+              name={otherUserName}
+              className='h-10 w-10'
+            />
 
-            <Text
-              style={[
-                chatStyles.connectionStatus,
-                isConnected
-                  ? chatStyles.connectedText
-                  : chatStyles.connectingText,
-              ]}
-            >
-              {isConnected ? 'Connected' : 'Connecting...'}
-            </Text>
+            <View style={chatStyles.headerNameAndStatus}>
+              <Heading size='lg'>{otherUserName}</Heading>
+
+              <Text
+                style={[
+                  chatStyles.connectionStatus,
+                  isConnected
+                    ? chatStyles.connectedText
+                    : chatStyles.connectingText,
+                ]}
+              >
+                {isConnected ? 'Connected' : 'Connecting...'}
+              </Text>
+            </View>
           </View>
 
           {/*
@@ -379,7 +408,13 @@ const chatStyles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  headerNameAndStatus: {
+    flexShrink: 1,
   },
   headerSpacer: {
     width: 44,
@@ -424,6 +459,14 @@ const chatStyles = StyleSheet.create({
   messageRow: {
     width: '100%',
     flexDirection: 'row',
+    // keeps the profile pic in the middle of the message bubble
+    alignItems: 'center',
+  },
+  otherMessageAvatar: {
+    marginRight: 8,
+  },
+  myMessageAvatar: {
+    marginLeft: 8,
   },
   myMessageRow: {
     justifyContent: 'flex-end',

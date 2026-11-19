@@ -378,6 +378,7 @@ export default function HomeScreen({ navigation }: any) {
 
       navigation.navigate('ChatScreen', {
         conversationId: conversation.id,
+        otherUserId: conversation.otherUserId,
         otherUserName: conversation.otherUserName,
       });
     } catch (chatError) {

@@ -157,6 +157,7 @@ export default function ManageTeamScreen({ navigation }: any) {
 
                   navigation.navigate('ChatScreen', {
                     conversationId: conversation.id,
+                    otherUserId: conversation.otherUserId,
                     otherUserName: conversation.otherUserName,
                   });
                 } catch (error) {

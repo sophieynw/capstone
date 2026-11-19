@@ -109,6 +109,8 @@ Authentication determines whether the login screens or the authenticated applica
 
 ## Getting started
 
+For common development issues, see the [Developer Troubleshooting Guide](docs/TROUBLESHOOTING.md).
+
 ### Prerequisites
 
 - Git
